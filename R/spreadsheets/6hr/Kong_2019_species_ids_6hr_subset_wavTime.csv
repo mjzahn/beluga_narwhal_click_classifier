@@ -1,0 +1,17 @@
+start,end,id,species,sr,db
+10/4/2019 0:00:00,10/4/2019 6:00:00,241,NOISE,144000,PAM20103_Zahn_narluga_Kong-subset_20kHzhighpass.sqlite3
+10/4/2019 6:00:00,10/4/2019 12:00:00,242,X085,144000,PAM20103_Zahn_narluga_Kong-subset_20kHzhighpass.sqlite3
+10/4/2019 12:00:00,10/4/2019 18:00:00,243,NOISE,144000,PAM20103_Zahn_narluga_Kong-subset_20kHzhighpass.sqlite3
+10/4/2019 18:00:00,10/5/2019 0:00:00,244,X085,144000,PAM20103_Zahn_narluga_Kong-subset_20kHzhighpass.sqlite3
+10/5/2019 0:00:00,10/5/2019 6:00:00,245,NOISE,144000,PAM20103_Zahn_narluga_Kong-subset_20kHzhighpass.sqlite3
+10/5/2019 6:00:00,10/5/2019 12:00:00,246,NOISE,144000,PAM20103_Zahn_narluga_Kong-subset_20kHzhighpass.sqlite3
+10/5/2019 12:00:00,10/5/2019 18:00:00,247,X085,144000,PAM20103_Zahn_narluga_Kong-subset_20kHzhighpass.sqlite3
+10/5/2019 18:00:00,10/6/2019 0:00:00,248,NOISE,144000,PAM20103_Zahn_narluga_Kong-subset_20kHzhighpass.sqlite3
+10/6/2019 0:00:00,10/6/2019 6:00:00,249,NOISE,144000,PAM20103_Zahn_narluga_Kong-subset_20kHzhighpass.sqlite3
+10/6/2019 6:00:00,10/6/2019 12:00:00,250,NOISE,144000,PAM20103_Zahn_narluga_Kong-subset_20kHzhighpass.sqlite3
+10/6/2019 12:00:00,10/6/2019 18:00:00,251,NOISE,144000,PAM20103_Zahn_narluga_Kong-subset_20kHzhighpass.sqlite3
+10/6/2019 18:00:00,10/7/2019 0:00:00,252,X045,144000,PAM20103_Zahn_narluga_Kong-subset_20kHzhighpass.sqlite3
+10/7/2019 0:00:00,10/7/2019 6:00:00,253,X045,144000,PAM20103_Zahn_narluga_Kong-subset_20kHzhighpass.sqlite3
+10/7/2019 6:00:00,10/7/2019 12:00:00,254,NOISE,144000,PAM20103_Zahn_narluga_Kong-subset_20kHzhighpass.sqlite3
+10/7/2019 12:00:00,10/7/2019 18:00:00,255,NOISE,144000,PAM20103_Zahn_narluga_Kong-subset_20kHzhighpass.sqlite3
+10/7/2019 18:00:00,10/8/2019 0:00:00,256,NOISE,144000,PAM20103_Zahn_narluga_Kong-subset_20kHzhighpass.sqlite3

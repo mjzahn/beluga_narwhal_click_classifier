@@ -1,0 +1,9 @@
+start,end,id,species,sr,db
+8/6/2019 0:00:00,8/6/2019 6:00:00,1,NOISE,144000,PAM20103_Zahn_narluga_Fisher-subset_20kHztrigger.sqlite3
+8/6/2019 6:00:00,8/6/2019 12:00:00,2,X085,144000,PAM20103_Zahn_narluga_Fisher-subset_20kHztrigger.sqlite3
+8/6/2019 12:00:00,8/6/2019 18:00:00,3,X085,144000,PAM20103_Zahn_narluga_Fisher-subset_20kHztrigger.sqlite3
+8/6/2019 18:00:00,8/7/2019 0:00:00,4,NOISE,144000,PAM20103_Zahn_narluga_Fisher-subset_20kHztrigger.sqlite3
+8/7/2019 0:00:00,8/7/2019 6:00:00,5,NOISE,144000,PAM20103_Zahn_narluga_Fisher-subset_20kHztrigger.sqlite3
+8/7/2019 6:00:00,8/7/2019 12:00:00,6,X085,144000,PAM20103_Zahn_narluga_Fisher-subset_20kHztrigger.sqlite3
+8/7/2019 12:00:00,8/7/2019 18:00:00,7,NOISE,144000,PAM20103_Zahn_narluga_Fisher-subset_20kHztrigger.sqlite3
+8/7/2019 18:00:00,8/8/2019 0:00:00,8,NOISE,144000,PAM20103_Zahn_narluga_Fisher-subset_20kHztrigger.sqlite3

@@ -1,0 +1,154 @@
+---
+title: "test_beluga_narwhal_classifier"
+author: "Marie Zahn"
+date: '2022-07-12'
+output: pdf_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Test beluga and narwhal BANTER classifier with noise category
+
+```{r set up workspace}
+## load required packages
+library(ggplot2)
+library(PAMpal)
+library(banter)
+library(dplyr)
+library(randomForest)
+library(rfPermute)
+library(here)
+
+#Set time zone to UTC
+Sys.setenv(TZ = 'UTC')
+
+## install PAMpal package from GitHub
+# devtools::install_github('TaikiSan21/PAMpal')
+## install BANTER package from GitHub
+# devtools::install_github('ericarcher/banter')
+
+```
+
+```{r load data}
+## load testing data
+## version with updated version of PAMGuard
+load(here("R/Rdata/1hr/Fish_20kHzPG_20kHzPP_1hr_wavTime_filtered_labeled.rdata"))
+load(here("R/Rdata/1hr/Kong_20kHzPG_20kHzPP_1hr_wavTime_filtered_labeled.rdata"))
+```
+
+```{r thin data}
+## because the Fisher dataset is so large, we need to thin the dataset in order to process it without reaching computer memory limits
+for (i in 1:length(fish_dets_20kHzPP_filter@events)) {
+  if (nClicks(fish_dets_20kHzPP_filter@events[[i]])>1000 & nClicks(fish_dets_20kHzPP_filter@events[[i]])<=10000) {
+    fish_dets_20kHzPP_filter@events[[i]] <- fish_dets_20kHzPP_filter@events[[i]] %>% 
+      dplyr::filter(row_number(UID) %% 10 == 0)
+  }
+  ## take eveyr 100th click if event has >10,000 clicks
+  if (nClicks(fish_dets_20kHzPP_filter@events[[i]])>10000) {
+    fish_dets_20kHzPP_filter@events[[i]] <- fish_dets_20kHzPP_filter@events[[i]] %>% 
+      dplyr::filter(row_number(UID) %% 100 == 0)
+  }
+}
+## this decreased the AcousticStudy object by more than half from 1.7 GB to 762 MB
+
+for (i in 1:length(kong_dets_20kHzPP_filter@events)) {
+  if (nClicks(kong_dets_20kHzPP_filter@events[[i]])>1000 & nClicks(kong_dets_20kHzPP_filter@events[[i]])<=10000) {
+    kong_dets_20kHzPP_filter@events[[i]] <- kong_dets_20kHzPP_filter@events[[i]] %>% 
+      dplyr::filter(row_number(UID) %% 10 == 0)
+  }
+  ## take eveyr 100th click if event has >10,000 clicks
+  if (nClicks(kong_dets_20kHzPP_filter@events[[i]])>10000) {
+    kong_dets_20kHzPP_filter@events[[i]] <- kong_dets_20kHzPP_filter@events[[i]] %>% 
+      dplyr::filter(row_number(UID) %% 100 == 0)
+  }
+}
+
+```
+
+## Predict species
+
+```{r load banter model}
+## load BANTER model with noise
+load(here('R/Rdata/bant_mdl_Det23_20kHz_noise.rdata'))
+
+# check model summary
+summary(bant.mdl_noise)
+```
+
+```{r}
+## Export data from AcousticStudy into format required to run a BANTER model
+## Fisher islands
+banter_fish <- export_banter(fish_dets_20kHzPP_filter,
+                               dropVars = c('noiseLevel', 'dBPP', 'peakTime'))
+## Kong Oscar
+banter_kong <- export_banter(kong_dets_20kHzPP_filter,
+                             dropVars = c('noiseLevel', 'dBPP', 'peakTime'))
+
+# filter out clicks that were not detected in click detector 2
+banter_fish$detectors$Click_Detector_2<-filter(banter_fish$detectors$Click_Detector_2, peak>20 & peak<50)
+banter_fish$detectors$Click_Detector_3<-filter(banter_fish$detectors$Click_Detector_3, peak>50 & peak<70)
+
+banter_kong$detectors$Click_Detector_2<-filter(banter_kong$detectors$Click_Detector_2, peak>20 & peak<50)
+banter_kong$detectors$Click_Detector_3<-filter(banter_kong$detectors$Click_Detector_3, peak>50 & peak<70)
+
+# predict species with novel data
+# score_Fisher <- predict(bant.mdl_new, banter_Fisher)
+score_fish <- predict(bant.mdl_noise, banter_fish)
+score_fish
+
+# score_kong <- predict(bant.mdl_new, banter_kong)
+score_kong <- predict(bant.mdl_noise, banter_kong)
+score_kong
+
+## look at beluga predictions
+score_fish$predict.df[score_fish$predict.df$original == "X045",]
+score_kong$predict.df[score_kong$predict.df$original == "X045",]
+
+## look at narwhal predictions
+score_fish$predict.df[score_fish$predict.df$original == "X085",]
+score_kong$predict.df[score_kong$predict.df$original == "X085",]
+
+## look at noise predictions
+score_fish$predict.df[score_fish$predict.df$original == "NOISE",]
+score_kong$predict.df[score_kong$predict.df$original == "NOISE",]
+
+```
+
+
+## Save model output and scores
+```{r save classification scores}
+save(score_fish,file=here('R/Rdata/score_fish.rdata'))
+save(score_kong,file=here('R/Rdata/score_kong.rdata'))
+
+write.csv(score_kong$predict.df, here('R/Kong_scores.csv'))
+write.csv(score_fish$predict.df, here('R/Fish_scores.csv'))
+```
+
+
+## Need to look at events 293 and 299
+
+```{r avg spectra and concat spectrogram}
+# average spectra for all beluga events
+calculateAverageSpectra(Fisher_2019_data_20kHz,299,plot=TRUE, noise = FALSE,
+                        filterfrom_khz = 0)
+
+# look at average spectra and spectrograms for beluga events that were misclassified (293,299) and correctly classified (305)
+calculateAverageSpectra(Fisher_2019_data_20kHz,249,plot=TRUE, noise = FALSE,
+                        filterfrom_khz = 20)
+
+calculateAverageSpectra(Fisher_2019_data_20kHz,249,plot=TRUE, noise = FALSE,
+                        filterfrom_khz = 20)
+
+# look at average spectra and spectrograms for narwhal events that were
+# correctly classified (30, 98, 206)
+calculateAverageSpectra(Fisher_2019_data_20kHz,30,plot=TRUE,
+                        filterfrom_khz = 20, noise=TRUE)
+
+# can also look at events that were classified as narwhal events but were not labeled by Michael to be so: 20, 16, 46 (selected randomly). Event 20 might actually be narwhals
+
+```
+

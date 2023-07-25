@@ -1,0 +1,765 @@
+---
+title: "test_beluga_narwhal_classifier"
+author: "Marie Zahn"
+date: '2022-07-12'
+output: pdf_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+## Testing the beluga and narwhal BANTER classifier
+
+*Click classifiers used in PAMGuard click detector module:*
+Unclassified, Code 0 (black dot)
+4-20 kHz, Code 1 (orange diamond)
+20-50 kHz, Code 2 (red hexagon)
+50-70 kHz, Code 3 (blue circle)
+70-100 kHz, Code 4 (green star)*
+100-150 kHz, Code 5 (yellow square)*
+150-250 kHz, Code 6 (red triangle)*
+
+*These classifiers were not used for these data since the Nyquist frequency is 72 kHz for the ST500.
+
+Log:
+
+3/9/2022
+1. Reran 2013 training data through PAMpal calcs to have them be consistent with new Fisher Islands params (mainly center frequency variable was changed from Hz to kHz). These results are saved in the bant.mdl and banterAll objects (called 'updated' in .rdata files)
+2. Ran 2013 training data to fit soundtrap variables so that the model only used detectors 2, 3, and 4. (called 'new' in .rdata files)
+3. Tested Fisher islands data with that new training banter model - model predicted all data were narwhal
+4. then added 10 kHz highpass filter to data because that is what was done for the training data. With this, the model only predicted 2 of the ~62 events correctly
+5. Filtered out noisy data (=Fisher_2019_data_filter). This AcousticStudy object has the 10 kHz highpass filter, noise filter, and ICI calculation. I reran the model and it only guessed one beluga event well.
+6. Then re-ran training banter model with 2013 data with only Detectors 2 and 3 (20-70 kHz)
+
+3/10/22
+1. Realized the classifiers in my PAMGuard file were incorrect, so I corrected those and re-ran the data. (I had updated the classifiers for the 2013 data in PAMGuard Viewer mode so opening the psfx file in PAMGuard beta didn't show those changes)
+2. Ran 2013 training data to fit soundtrap variables so that the model only used detectors 2, and 3. (called 'new' in .rdata files). Can't include Detector 1 because there were only clicks in the narwhal data detected for classifier 1.
+3. Model was greatly improved and only used Detectors 2 and 3. Got 30 out of the 57 beluga events correct and all 58 of the narwhal events correct (this is using Fisher data with 10 kHz highpass filter).
+4. Filtered out the noisy clicks and reran model (saved rdata without noisy clicks as Fisher_2019_data_10kHz_noise.rdata) - the model performed worse when I did this
+5. Reran Fisher data with 20 kHz highpass filter and then ran model. *This worked really well!* It predicted all of the narwhal events correctly and 51 of the 57 beluga events correctly.
+6. Wanted to try a 15 kHz highpass filter as well. Didn't work as well - all narwhal events were classified correctly but only 40 out of the 57 beluga events were predicted correctly.
+7. Then tested training model with only Detector 2. Using the 2013 data to build a new classifier, the correct classification score was still very high: 96.3% correct species classification. All beluga events were correctly classified and 59 out of 62 of the narwhal events were correctly classified (saved as "bant_mdl_Det2.rdata").
+8. Then used this new Det 2 (20-50 kHz) classifier to predict species for the 2019 Fisher data. *It performed EVEN BETTER* with all the narwhal events correctly predicted and 54/57 (94.7%) beluga events correctly classified.
+
+3/21/22
+1. Plotted avg spectra for ALL clicks (both beluga and narwhal) to identify what high pass filter made sense - justified 20 kHz highpass filter to reduce low frequency noise.
+2. Looked at avg spectra for 0, 18, 19, and 20 kHz highpass filters. Also tested the model outcome with those filters. The 20 kHz highpass filter was the best performing model result, but the 19 kHz model was not far off from that. Look at powerpoint 'test_classifier_summary' for plots.
+
+Next time:
+- should I re-run the 2013 training data through a 20 kHz high pass filter as well? So that they are consistent between training and testing data.
+- is there a way to create acoustic events based on # clicks and not time intervals?
+- is there a way to get at the "best" and "simplist" model form, like an AIC criterion?
+
+Next time?: Error in .getSampsize(df$species, sampsize, paste0("Detector model (",Detector model (Click_Detector_1) has 1 species (need at least 2 for model)
+  ^ look into adding event level variable for Click detector 1 presence/absence
+  
+Filter based on dB received level (only take clicks with RL of a certain threshold), 
+Figure out what dBPP really means and how it is calculated. Can we get RL from that? is it amplitude?
+
+Ideas going forward:
+- remove events with # clicks below a certain threshold (i.e., an event must have at least 10 clicks for it to be processed)
+- figure out how to filter data based on received level
+
+POST INITIAL TEST OF CLASSIFIER - NOW USING ALL DATA
+
+8/1/2022
+- processed data using PAMpal using 20 kHz highpass filter - took 33 hours to process detections in R
+
+8/3/2022
+- decided to rerun data through the click detector in PAMGuard and use a 10 kHz highpass filter (instead of 4 kHz) - this should eliminate a lot of the noise and working in R faster/easier
+
+8/20/2022
+- processed detections in R with PAMpal using updated spreadsheet from Michael's manual detections. This run used a 20 kHz highpass filter
+
+Processing took 120606 seconds
+Warning messages:
+1: No detections in Event(s) 1203, 1204, 1205 
+2: Found 33636 click detections with NA values.
+
+Created data for 3274 events with 18673098 total detections and 3 unique species: X999, X085, X045.
+Re-run with dropSpecies argument if any of these are not desired.
+
+|Species | Events| Detections|
+|:-------|------:|----------:|
+|X045    |     36|     141755|
+|X085    |    221|     804242|
+|X999    |   3016|   17727101|
+
+When I ran the model with the hourly acoustic events, here was the result:
+$validation.matrix
+        predicted
+original X045 X085
+    X045    6   30
+    X085    1  209
+    X999   13 2824
+    
+Because there were so many beluga events misclassified as narwhal events, I decided to run the same process but with 6-hourly acoustic events, matching the spreadsheet Michael L. created
+
+8/23/2022
+- processed detections with 6 hourly spreadsheet.
+
+Processing took 135144 seconds
+Warning messages:
+1: Found 1 events with detections more than 7200 seconds apart: 201 
+2: Found 33636 click detections with NA values.
+
+Ran model with testing dataset
+$detector.freq
+          detector num.events
+1 Click_Detector_2        545
+
+$validation.matrix
+        predicted
+original X045 X085
+    X045    4    2
+    X085    0   37
+    X999    0  502
+    
+9/11/2022
+- After processing click detections in PAMGuard with 20 kHz highpass filter, ran pampal processing in R (with 20 kHz highpass filter)
+
+$validation.matrix
+        predicted
+original X045 X085
+    X045    1    5
+    X085    0   37
+    X999    0  503
+
+6/21/2023
+Added noise category to classifier (See other script). This included noise data from both Kong Oscar and the Fisher Islands. I took noise data from 2 separate days at each site (total 4).
+
+```{r set up workspace}
+## load required packages
+library(ggplot2)
+library(PAMpal)
+library(banter)
+library(dplyr)
+library(randomForest)
+library(rfPermute)
+library(here)
+
+#Set time zone to UTC
+Sys.setenv(TZ = 'UTC')
+
+## install PAMpal package from GitHub
+# devtools::install_github('TaikiSan21/PAMpal')
+## install BANTER package from GitHub
+# devtools::install_github('ericarcher/banter')
+
+```
+
+```{r load data}
+## model without noise category
+load(file=here('R/Rdata/banterAll_new.rdata'))
+load(file=here('R/Rdata/bant_mdl_new.rdata'))
+
+## load data
+# load(file='Rdata/Fisher_2019.rdata')
+load(file='Rdata/Fisher_2019_20kHz.rdata')
+load(file='Rdata/Monodontid_2013_data_ch1.rdata')
+
+## load testing data
+## version with updated version of PAMGuard
+load(here("R/Rdata/1hr/Fish_20kHzPG_20kHzPP_1hr_wavTime_filtered_labeled.rdata"))
+load(here("R/Rdata/1hr/Kong_20kHzPG_20kHzPP_1hr_wavTime_filtered_labeled.rdata"))
+
+```
+
+```{r thin data}
+## because the Fisher dataset is so large, we need to thin the dataset in order to process it without reaching computer memory limits
+for (i in 1:length(fish_dets_20kHzPP_filter@events)) {
+  if (nClicks(fish_dets_20kHzPP_filter@events[[i]])>1000 & nClicks(fish_dets_20kHzPP_filter@events[[i]])<=10000) {
+    fish_dets_20kHzPP_filter@events[[i]] <- fish_dets_20kHzPP_filter@events[[i]] %>% 
+      dplyr::filter(row_number(UID) %% 10 == 0)
+  }
+  ## take eveyr 100th click if event has >10,000 clicks
+  if (nClicks(fish_dets_20kHzPP_filter@events[[i]])>10000) {
+    fish_dets_20kHzPP_filter@events[[i]] <- fish_dets_20kHzPP_filter@events[[i]] %>% 
+      dplyr::filter(row_number(UID) %% 100 == 0)
+  }
+}
+## this decreased the AcousticStudy object by more than half from 1.7 GB to 762 MB
+
+for (i in 1:length(kong_dets_20kHzPP_filter@events)) {
+  if (nClicks(kong_dets_20kHzPP_filter@events[[i]])>1000 & nClicks(kong_dets_20kHzPP_filter@events[[i]])<=10000) {
+    kong_dets_20kHzPP_filter@events[[i]] <- kong_dets_20kHzPP_filter@events[[i]] %>% 
+      dplyr::filter(row_number(UID) %% 10 == 0)
+  }
+  ## take eveyr 100th click if event has >10,000 clicks
+  if (nClicks(kong_dets_20kHzPP_filter@events[[i]])>10000) {
+    kong_dets_20kHzPP_filter@events[[i]] <- kong_dets_20kHzPP_filter@events[[i]] %>% 
+      dplyr::filter(row_number(UID) %% 100 == 0)
+  }
+}
+
+```
+
+```{r filter out noise}
+
+## filter out clicks that have a lot of noise
+Fisher_2019_data_10kHz_noise <- filter(Fisher_2019_data_10kHz, noiseLevel >= -20)
+
+#Remove clicks with bandwidth at 10dB < 5 kHz (Load 'dplyr' package)
+for(d in c(1:6)){
+  banterAllsmall$detectors[[d]]<-filter(banterAllsmall$detectors[[d]],BW_10dB > 5)
+  banterAllsmall$detectors[[d]]<-filter(banterAllsmall$detectors[[d]],peak > 5 & peak < 80)
+  banterAllsmall$detectors[[d]]<-filter(banterAllsmall$detectors[[d]],duration > 2 & duration < 1000)
+}
+
+#Remove clicks in individual detectors
+# banterAllsmall$detectors$Click_Detector_1<-filter(banterAllsmall$detectors$Click_Detector_1, peak>2 & peak<15)
+banterAllsmall$detectors$Click_Detector_2<-filter(banterAllsmall$detectors$Click_Detector_2, peak>20 & peak<50)
+# banterAllsmall$detectors$Click_Detector_3<-filter(banterAllsmall$detectors$Click_Detector_3, peak>30 & peak<50)
+# banterAllsmall$detectors$Click_Detector_4<-filter(banterAllsmall$detectors$Click_Detector_4, peak>30 & peak<50)
+# banterAllsmall$detectors$Click_Detector_5<-filter(banterAllsmall$detectors$Click_Detector_5, peak>50 & peak<80)
+
+save(Fisher_2019_data_10kHz_noise, file='Fisher_2019_data_10kHz_noise.rdata')
+```
+
+## Run 2013 training data through updated PAMpal and test model output
+
+
+```{r}
+## remove noise events
+fish_dets_20kHzPP_whale <- fish_dets_20kHzPP_filter %>% filter(species!='NOISE')
+kong_dets_20kHzPP_whale <- kong_dets_20kHzPP_filter %>% filter(species!='NOISE')
+
+## Export data from AcousticStudy into format required to run a BANTER model
+## Fisher islands
+banter_fish <- export_banter(fish_dets_20kHzPP_whale,
+                               dropVars = c('noiseLevel', 'dBPP', 'peakTime'))
+## Kong Oscar
+banter_kong <- export_banter(kong_dets_20kHzPP_whale,
+                             dropVars = c('noiseLevel', 'dBPP', 'peakTime'))
+
+# filter out clicks that were not detected in click detector 2
+banter_fish$detectors$Click_Detector_2<-filter(banter_fish$detectors$Click_Detector_2, peak>20 & peak<50)
+banter_fish$detectors$Click_Detector_3<-filter(banter_fish$detectors$Click_Detector_3, peak>50 & peak<70)
+
+banter_kong$detectors$Click_Detector_2<-filter(banter_kong$detectors$Click_Detector_2, peak>20 & peak<50)
+banter_kong$detectors$Click_Detector_3<-filter(banter_kong$detectors$Click_Detector_3, peak>50 & peak<70)
+
+# predict species with novel data
+# score_Fisher <- predict(bant.mdl_new, banter_Fisher)
+score_fish_whale <- predict(bant.mdl_new, banter_fish)
+score_fish_whale
+
+# score_kong <- predict(bant.mdl_new, banter_kong)
+score_kong_whale <- predict(bant.mdl_new, banter_kong)
+score_kong_whale
+
+## look at beluga predictions
+score_fish_whale$predict.df[score_fish_whale$predict.df$original == "X045",]
+score_kong_whale$predict.df[score_kong_whale$predict.df$original == "X045",]
+
+## look at narwhal predictions
+score_fish_whale$predict.df[score_fish_whale$predict.df$original == "X085",]
+score_kong_whale$predict.df[score_kong_whale$predict.df$original == "X085",]
+
+## look at noise predictions
+score_fish_whale$predict.df[score_fish_whale$predict.df$original == "NOISE",]
+score_kong_whale$predict.df[score_kong_whale$predict.df$original == "NOISE",]
+
+```
+
+## Save model output and scores
+```{r save classification scores}
+save(score_fish_whale,file=here('R/Rdata/score_fish_whale.rdata'))
+save(score_kong_whale,file=here('R/Rdata/score_kong_whale.rdata'))
+
+write.csv(score_kong_whale$predict.df, here('R/Kong_scores_whale.csv'))
+write.csv(score_fish_whale$predict.df, here('R/Fish_scores_whale.csv'))
+```
+
+
+```{r run 2013 data through updated PAMpal}
+## Create a settings object (loading databases and binaries)
+myPps <- PAMpalSettings()
+Monodontid_2013_data <- processPgDetections(myPps,mode='db',id='Narluga_043031')
+Monodontid_2013_data <- setSpecies(Monodontid_2013_data, method = 'pamguard')
+Monodontid_2013_data_ch1 <- filter(Monodontid_2013_data, Channel == '1')
+
+## calculate ICI and add to object
+Monodontid_2013_data_ch1 <- calculateICI(Monodontid_2013_data_ch1, time = 'UTC', callType="click")
+save(Monodontid_2013_data_ch1, file='Rdata/Monodontid_2013_data_ch1.rdata')
+
+```
+
+```{r rerun Banter training model}
+## export banter model
+banterAll <- export_banter(Monodontid_2013_data_ch1,
+                           dropVars = c('noiseLevel', 'dBPP', 'peakTime'))
+
+## initialize banter model
+bant.mdl <- initBanterModel(banterAll$events)
+
+## look at detector names and order
+names(banterAll$detectors)
+
+## run RF models for each Detector added-------------------------------------
+bant.mdl <- addBanterDetector(
+  bant.mdl, 
+  data = banterAll$detectors[c(2,3,4,5)], # does not include Det 0, 1, and 6
+  ntree = 10000, 
+  sampsize = 50,
+  importance = TRUE
+)
+## look at summary of Detector models
+## this shows correct classification rate for each species in each detector
+summary(bant.mdl)
+plotDetectorTrace(bant.mdl)
+
+## run Event model------------------------------------------------------------
+bant.mdl <- runBanterModel(bant.mdl, ntree = 10000, sampsize = 9)
+
+## look at summary for Event model
+summary(bant.mdl)
+
+## get RF data from banter model
+event.rf <- getBanterModel(bant.mdl, "event")
+
+## SUMMARIES
+plotVotes(event.rf)
+# proximityPlot(event.rf) # no longer this function
+plotProximity(event.rf)
+casePredictions(event.rf)
+
+## OTHER THINGS TO LOOK INTO: -------------------------------
+## get RF data for specific detector - example of Det 5:
+(event.rf.Det5 <- getBanterModel(bant.mdl, "Click_Detector_5"))
+
+## examine model stability
+rfPermute::plotTrace(event.rf)
+rfPermute::plotInbag(event.rf)
+
+## get predictor names for event level RF model
+colnames(bant.mdl@model.data)
+
+# save(bant.mdl, file='Rdata/bant_mdl_updated.rdata')
+# save(banterAll, file='Rdata/banterAll_updated.rdata')
+# 
+# load(file.choose())
+
+```
+
+```{r rerun Banter training model - Only Det 2 and 3}
+## export banter model
+load(file='Rdata/Monodontid_2013_data_ch1.rdata')
+
+banterAll_new <- export_banter(Monodontid_2013_data_ch1,
+                               dropVars = c('noiseLevel', 'dBPP', 
+                                            'peakTime', 'Click_Detector_2_ici'))
+
+## initialize banter model
+bant.mdl_new <- initBanterModel(banterAll_new$events)
+
+## look at detector names and order
+names(banterAll_new$detectors)
+
+## run RF models for each Detector added-------------------------------------
+bant.mdl_new <- addBanterDetector(
+  bant.mdl_new, 
+  data = banterAll_new$detectors[c(2,3)], # includes only Detectors 2 and 3
+  ntree = 10000, 
+  sampsize = 50,
+  importance = TRUE
+)
+## look at summary of Detector models
+## this shows correct classification rate for each species in each detector
+summary(bant.mdl_new)
+plotDetectorTrace(bant.mdl_new)
+
+## run Event model------------------------------------------------------------
+bant.mdl_new <- runBanterModel(bant.mdl_new, ntree = 10000, sampsize = 9)
+
+## look at summary for Event model
+summary(bant.mdl_new)
+
+## get RF data from banter model
+event.rf_new <- getBanterModel(bant.mdl_new, "event")
+
+## SUMMARIES
+plotVotes(event.rf_new)
+plotProximity(event.rf_new)
+casePredictions(event.rf_new)
+
+## OTHER THINGS TO LOOK INTO: -------------------------------
+## get RF data for specific detector - example of Det 5:
+(event.rf.Det4 <- getBanterModel(bant.mdl_new, "Click_Detector_4"))
+
+## examine model stability
+rfPermute::plotTrace(event.rf)
+rfPermute::plotInbag(event.rf)
+
+## get predictor names for event level RF model
+colnames(bant.mdl_new@model.data)
+
+save(bant.mdl_new, file='Rdata/bant_mdl_new.rdata')
+save(banterAll_new, file='Rdata/banterAll_new.rdata')
+
+# load(file.choose())
+
+```
+
+
+```{r rerun Banter training model - Only Det2}
+## export banter model
+load(file='Rdata/Monodontid_2013_data_ch1.rdata')
+
+banterAll_new <- export_banter(Monodontid_2013_data_ch1,
+                               dropVars = c('noiseLevel', 'dBPP', 
+                                            'peakTime', 'Click_Detector_2_ici'))
+
+## initialize banter model
+bant.mdl_new <- initBanterModel(banterAll_new$events)
+
+## look at detector names and order
+names(banterAll_new$detectors)
+
+## run RF models for each Detector added-------------------------------------
+bant.mdl_new <- addBanterDetector(
+  bant.mdl_new, 
+  data = banterAll_new$detectors[2], # includes only Detector 2 
+  ntree = 10000, 
+  sampsize = 50,
+  importance = TRUE
+)
+## look at summary of Detector models
+## this shows correct classification rate for each species in each detector
+summary(bant.mdl_new)
+plotDetectorTrace(bant.mdl_new)
+
+## run Event model------------------------------------------------------------
+bant.mdl_new <- runBanterModel(bant.mdl_new, ntree = 10000, sampsize = 9)
+
+## look at summary for Event model
+summary(bant.mdl_new)
+
+## get RF data from banter model
+event.rf_new <- getBanterModel(bant.mdl_new, "event")
+
+## SUMMARIES
+plotVotes(event.rf_new)
+plotProximity(event.rf_new)
+casePredictions(event.rf_new)
+
+## OTHER THINGS TO LOOK INTO: -------------------------------
+## get RF data for specific detector - example of Det 5:
+(event.rf.Det4 <- getBanterModel(bant.mdl_new, "Click_Detector_4"))
+
+## examine model stability
+rfPermute::plotTrace(event.rf)
+rfPermute::plotInbag(event.rf)
+
+## get predictor names for event level RF model
+colnames(bant.mdl_new@model.data)
+
+save(bant.mdl_new, file='Rdata/bant_mdl_Det2.rdata')
+save(banterAll_new, file='Rdata/banterAll_Det2.rdata')
+
+# load(file.choose())
+
+```
+
+
+```{r MDS plot}
+library(ggplot2)
+library(RColorBrewer)
+library(patchwork)
+library(tidyverse)
+library(vegan)
+
+#### calculate percent of variation explained for each dimension in MDS
+proximity.matrix <- event.rf$proximity
+## create euclidean distance matrix using proximity values from random forest
+ranfor.euclid <- vegdist(proximity.matrix, method = "euclidean")
+## perform PCoA/MDS
+ranfor.pcoa <- cmdscale(ranfor.euclid, k = 80, eig = TRUE, add = TRUE)
+## percent variation explained by any principal coordinate
+eig <- ranfor.pcoa$eig / sum(ranfor.pcoa$eig)*100
+head(eig)
+
+## Get MDS plot from banter event-level model
+levels(event.rf$y) <- c("Beluga", "Narwhal")
+levels(event.rf[["predicted"]]) <- c("Beluga", "Narwhal")
+event.rf[["classes"]] <- c("Beluga", "Narwhal")
+
+banter.plot <- plotProximity(event.rf, group.type = "hull", 
+              point.size = 2, circle.size = 6, 
+              class.cols = c("#238b45", "#6a51a3"), 
+              group.alpha = 0.2)
+p1 <- banter.plot$g + 
+  theme_light() +
+  xlab("Dimension 1 (98.4%)") + ylab("Dimension 2 (0.6%)") +
+  theme(legend.position = "none",
+        #legend.position = "top",
+        legend.title = element_blank(),
+        panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(),
+        axis.text.y=element_blank(),
+        axis.text.x=element_blank(),
+        axis.ticks.y=element_blank(),
+        axis.ticks.x=element_blank()) 
+  # annotate("text", x=-0.3, y=0.38, label="c", 
+  #          size = 6)
+
+## Heatmap of variable importance scores
+colnames(event.rf$importance) <- c("Beluga", "Narwhal", "MeanDecreaseAccuracy", "MeanDecreaseGini")
+## modified function from Eric Archer's code
+impHeatmap <- function(rf, n = NULL, ranks = TRUE, plot = TRUE, xlab = NULL, 
+                       ylab = NULL, scale = TRUE, alpha = 0.05) {
+  if(rf$type != "classification") stop("'rf' must be a classification model")
+  classes <- levels(rf$y)
+  if(!all(classes %in% colnames(rf$importance))) {
+    stop("'rf' must be run with 'importance = TRUE'")
+  }
+  
+  # format importance data.frame
+  imp <- data.frame(
+    randomForest::importance(rf, scale = scale), 
+    check.names = FALSE
+  )
+  imp.val <- imp$MeanDecreaseAccuracy
+  imp$predictor <- names(imp.val) <- rownames(imp)
+  if(ranks) for(x in classes) imp[[x]] <- rank(-imp[[x]])
+  imp <- imp[, c("predictor", classes)] %>% 
+    tidyr::gather("class", "value", -.data$predictor) %>% 
+    dplyr::mutate(
+      class = factor(.data$class, levels = levels(rf$y)),
+      predictor = factor(.data$predictor, levels = names(sort(imp.val)))
+    )
+  num.preds <- length(levels(imp$predictor))
+  n <- if(is.null(n)) length(levels(imp$predictor)) else min(c(n, num.preds))
+  imp <- imp[imp$predictor %in% levels(imp$predictor)[(num.preds - n + 1):num.preds], ]
+  imp <- droplevels(imp)
+
+  # create plot
+  g <- ggplot2::ggplot(imp, ggplot2::aes_string("class", "predictor")) +
+    ggplot2::geom_raster(ggplot2::aes_string(fill = "value")) + 
+    ggplot2::theme(panel.background = ggplot2::element_blank(),
+                   axis.ticks.y = element_blank())
+  g <- g + if(ranks) {
+    ggplot2::scale_fill_gradient2(
+      "Ranked\nVariable\nImportance", low="#252525", mid="#969696", high="#f0f0f0",
+       midpoint = mean(range(imp$value)), 
+      guide = ggplot2::guide_colorbar(reverse = TRUE)
+    )
+  } else {
+    ggplot2::scale_fill_gradient2(
+      "MeanDecreaseAccuracy", low="#252525", mid="#969696", high="#f0f0f0",
+      midpoint = mean(range(imp$value))
+    )
+  }
+  g <- g + if(is.null(xlab)) {
+    ggplot2::theme(axis.title.x = ggplot2::element_blank())
+  } else {
+    ggplot2::xlab(xlab)
+  }
+  g <- g + if(is.null(ylab)) {
+    ggplot2::theme(axis.title.y = ggplot2::element_blank()) 
+  } else {
+    ggplot2::ylab(ylab)
+  }
+  
+  if(inherits(rf, "rfPermute") & !is.null(rf$pval) & !is.null(alpha))  {
+    sc <- ifelse(scale, "scaled", "unscaled")
+    sig <- sapply(1:nrow(imp), function(i) {
+      pred <- as.character(imp$predictor[i])
+      cl <- as.character(imp$class[i])
+      rf$pval[pred, cl, sc] <= alpha
+    })
+    sig.df <- imp[sig, ]
+    sig.df$xmin <- as.integer(sig.df$class) - 0.5
+    sig.df$xmax <- as.integer(sig.df$class) + 0.5
+    sig.df$ymin <- as.integer(sig.df$predictor) - 0.5
+    sig.df$ymax <- as.integer(sig.df$predictor) + 0.5
+    g <- g + ggplot2::geom_rect(
+      ggplot2::aes_string(
+        xmin = "xmin", xmax = "xmax", 
+        ymin = "ymin", ymax = "ymax"
+      ),
+      data = sig.df, fill = NA, size = 1, color = "black"
+    )
+  }
+  
+  if(plot) print(g)
+  invisible(g)
+}
+
+```
+
+```{r run Banter model with fisher data}
+## export banter model
+banterAll_fisher <- export_banter(Fisher_2019_data_19kHz,
+                                  dropVars = c('noiseLevel', 'dBPP', 'peakTime'))
+
+## initialize banter model
+bant.mdl_fisher <- initBanterModel(banterAll_fisher$events)
+
+## see all detectors
+names(banterAll_fisher$detectors)
+
+## run RF models for each Detector added-------------------------------------
+bant.mdl_fisher <- addBanterDetector(
+  bant.mdl_fisher, 
+  data = banterAll_fisher$detectors[c(3,4,5)], # does not include Det 0 and 1 (includes Det 2,3,4 = 20-100 kHz)
+  ntree = 10000, 
+  sampsize = 50,
+  importance = TRUE
+)
+## look at summary of Detector models
+## this shows correct classification rate for each species in each detector
+summary(bant.mdl_fisher)
+plotDetectorTrace(bant.mdl_fisher)
+
+## run Event model------------------------------------------------------------
+bant.mdl_fisher <- runBanterModel(bant.mdl_fisher, ntree = 10000, sampsize = 9)
+
+## look at summary for Event model
+summary(bant.mdl_fisher)
+
+## get RF data from banter model
+event.rf_fisher <- getBanterModel(bant.mdl_fisher, "event")
+
+## SUMMARIES
+plotVotes(event.rf_fisher)
+# proximityPlot(event.rf) # no longer this function
+plotProximity(event.rf_fisher)
+casePredictions(event.rf_fisher)
+
+## OTHER THINGS TO LOOK INTO: -------------------------------
+## get RF data for specific detector - example of Det 5:
+(event.rf.fisher.Det4 <- getBanterModel(event.rf_fisher, "Click_Detector_3"))
+
+## examine model stability
+rfPermute::plotTrace(event.rf)
+rfPermute::plotInbag(event.rf)
+
+## get predictor names for event level RF model
+colnames(bant.mdl@model.data)
+
+# save(bant.mdl, file='Rdata/bant_mdl_updated.rdata')
+# save(banterAll, file='Rdata/banterAll_updated.rdata')
+
+```
+
+```{r avg spectra and concat spectrogram}
+# average spectra for all beluga events
+calculateAverageSpectra(Fisher_2019_data_20kHz,1:80,plot=TRUE, noise = FALSE,
+                        filterfrom_khz = 0)
+
+# average spectra for all narwhal events
+calculateAverageSpectra(Fisher_2019_data_20kHz,81:160,plot=TRUE, noise = FALSE,
+                        filterfrom_khz = 18)
+```
+
+```{r avg spectral for all data}
+calculateAverageSpectra(Fisher_2019_data_20kHz,evNum = 1:160,plot=TRUE, filterfrom_khz = 20)
+
+```
+
+## Predict species
+
+```{r load banter model}
+## load banter model
+load(file="Rdata/bant_mdl_Det2.rdata") # banter classifier with only Detector 2
+## load banter model with noise category
+load(file='Rdata/bant_mdl_Det2_noise.rdata') # banter classifier with only Detector 2
+
+## load detections from Fisher Islands data
+load(file="Rdata/Fisher_2019_10kHz.rdata")
+load(file="Rdata/Fisher_2019_18kHz.rdata")
+load(file="Rdata/Fisher_2019_19kHz.rdata")
+load(file="Rdata/Fisher_2019_20kHz.rdata")
+
+# load detections - subsets from both sites
+load(file="Rdata/Fisher19_subset_12kHzPG_19kHzPP_6hourly.rdata")
+load(file="Rdata/KO19_subset_12kHzPG_19kHzPP_6hourly.rdata")
+
+# check model summary
+summary(bant.mdl_new)
+summary(bant.mdl_noise)
+
+## Export data from AcousticStudy into format required to run a BANTER model
+## Fisher islands
+banter_Fisher <- export_banter(Fisher19_subset_data_12kHzPG_19kHzPP,
+                               dropVars = c('noiseLevel', 'dBPP', 'peakTime'))
+## Kong Oscar
+banter_KO <- export_banter(KO19_subset_data_12kHzPG_19kHzPP,
+                               dropVars = c('noiseLevel', 'dBPP', 'peakTime'))
+
+# remove unwanted Detectors
+names(banter_Fisher[["detectors"]])
+banter_Fisher[["detectors"]][["Click_Detector_0"]] <- NULL
+banter_Fisher[["detectors"]][["Click_Detector_1"]] <- NULL
+banter_Fisher[["detectors"]][["Click_Detector_3"]] <- NULL
+
+names(banter_KO[["detectors"]])
+banter_KO[["detectors"]][["Click_Detector_0"]] <- NULL
+banter_KO[["detectors"]][["Click_Detector_1"]] <- NULL
+banter_KO[["detectors"]][["Click_Detector_3"]] <- NULL
+
+# filter out clicks that were not detected in click detector 2
+banter_Fisher$detectors$Click_Detector_2<-filter(banter_Fisher$detectors$Click_Detector_2, peak>20 & peak<50)
+banter_KO$detectors$Click_Detector_2<-filter(banter_KO$detectors$Click_Detector_2, peak>20 & peak<50)
+
+# predict species with novel data
+score_Fisher <- predict(bant.mdl_new, banter_Fisher)
+score_Fisher <- predict(bant.mdl_noise, banter_Fisher)
+score_Fisher
+
+score_KO <- predict(bant.mdl_new, banter_KO)
+score_KO <- predict(bant.mdl_noise, banter_KO)
+score_KO
+
+score_Fisher$predict.df[score_Fisher$predict.df$original == "X045",]
+
+```
+
+# Need to look at events 293 and 299
+
+```{r avg spectra and concat spectrogram}
+# average spectra for all beluga events
+calculateAverageSpectra(Fisher_2019_data_20kHz,299,plot=TRUE, noise = FALSE,
+                        filterfrom_khz = 0)
+
+# look at average spectra and spectrograms for beluga events that were misclassified (293,299) and correctly classified (305)
+calculateAverageSpectra(Fisher_2019_data_20kHz,249,plot=TRUE, noise = FALSE,
+                        filterfrom_khz = 20)
+
+calculateAverageSpectra(Fisher_2019_data_20kHz,249,plot=TRUE, noise = FALSE,
+                        filterfrom_khz = 20)
+
+# look at average spectra and spectrograms for narwhal events that were
+# correctly classified (30, 98, 206)
+calculateAverageSpectra(Fisher_2019_data_20kHz,30,plot=TRUE,
+                        filterfrom_khz = 20, noise=TRUE)
+
+# can also look at events that were classified as narwhal events but were not labeled by Michael to be so: 20, 16, 46 (selected randomly). Event 20 might actually be narwhals
+
+```
+
+
+## Print out scores
+```{r}
+write.csv(score_Fisher$predict.df, 'Fisher_scores.csv')
+```
+
+## Look at events for false positives
+```{r}
+# Change banterData to whatever the name of your banter ready data is
+oneEvDets <- banterWHICEAS20$detectors
+# Change this to whatever event you are interested in
+evKeep <- c('279')
+for(d in seq_along(oneEvDets)) {
+    oneEvDets[[d]] <- filter(oneEvDets[[d]], event.id %in% evKeep)
+}
+# dropping any detectors that were not in this event
+nDets <- sapply(oneEvDets, nrow)
+EvDetsW279 <- oneEvDets[nDets > 0]
+# This is now a list of detectors that only have that event info
+```
