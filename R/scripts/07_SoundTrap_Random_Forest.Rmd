@@ -55,35 +55,42 @@ save(kong_click_df, file=here("R/Rdata/1hr/kong_click_df.rdata"))
 load(file=here("R/Rdata/1hr/fish_click_df.rdata"))
 load(file=here("R/Rdata/1hr/kong_click_df.rdata"))
 
+## join the datasets
+click_data_df <- rbind(fish_click_df,kong_click_df)
+
+## select only beluga and narwhal clicks
+whale_df <- click_data_df %>% filter(species!='Noise')
+
 ## make sure species is a factor
 fish_click_df$species <- as.factor(fish_click_df$species)
+click_data_df$species <- as.factor(click_data_df$species)
+whale_df$species <- as.factor(whale_df$species)
 
 ## extract variable names
-colnames(fish_click_df)
+colnames(click_data_df)
 
 ## Run random forest model (without peakTime, dBPP, and noiseLevel)
-fish_ranfor <- randomForest(species ~ duration + peak + peak2 + peak3 + trough + trough2 + peakToPeak2 + peakToPeak3 + peak2ToPeak3 + Q_10dB + fmin_10dB + fmax_10dB + BW_10dB + centerkHz_10dB + Q_3dB + fmin_3dB + fmax_3dB + BW_3dB + centerkHz_3dB + All_ici, 
-                       data = fish_click_df, 
-                       ntree = 1, 
+ranfor <- randomForest(species ~ duration + peak + peak2 + peak3 + trough + trough2 + peakToPeak2 + peakToPeak3 + peak2ToPeak3 + Q_10dB + fmin_10dB + fmax_10dB + BW_10dB + centerkHz_10dB + Q_3dB + fmin_3dB + fmax_3dB + BW_3dB + centerkHz_3dB + All_ici, 
+                       data = whale_df, 
+                       ntree = 10000, 
                        importance = TRUE,
-                       replace = FALSE, 
-                       proximity = TRUE, 
-                       sampsize = c(9, 9, 9))
+                       replace = TRUE, 
+                       proximity = TRUE)
 
-fish_ranfor
+ranfor
 
-confusionMatrix(ranfor)
+confusionMatrix(fish_ranfor)
 
 ## Predictions from the ensemble of all the trees
-predict <- ranfor$predicted
+predict <- fish_ranfor$predicted
 
 ## variables sorted in decreasing order of importance
-varImpPlot(ranfor)
-plotProximity(ranfor)
+varImpPlot(fish_ranfor)
+plotProximity(fish_ranfor)
 
-ranfor$proximity
-predict(ranfor)
-plot(ranfor)
+fish_ranfor$proximity
+predict(fish_ranfor)
+plot(fish_ranfor)
 
 ## Export sonar parameter data to excel for summary table ----------------------
 ## (supplementary table)
@@ -110,233 +117,203 @@ avSpec <- calculateAverageSpectra(ch1.Narluga.classification.NEW,
 
 ```
 
-```{r}
-# Install and load required packages
-library(randomForest)
-library(foreach)
-library(doParallel)
+```{r look at data}
+library(tidyr)
+click_df <- click_data_df %>% select(-c(eventId,UID,UTC,Channel,angle,angleError,noiseLevel,
+                                        detectorName,db,dBPP,BinaryFile))
 
-# Set the number of cores for parallel processing
-num_cores <- 6  # Change this value based on the available number of cores
-
-# Create a cluster with specified number of cores
-cl <- makeCluster(num_cores)
-registerDoParallel(cl=cl,cores=6)
-
-# Define the formula for the random forest model
-formula <- species ~ duration + peak + peak2 + peak3 + trough + trough2 + peakToPeak2 + peakToPeak3 + peak2ToPeak3 + Q_10dB + Q_3dB + centerkHz_10dB + centerkHz_3dB + fmin_10dB + fmax_10dB + fmin_3dB + fmax_3dB + BW_10dB + BW_3dB + All_ici
-
-# Run the random forest model in parallel
-fish_ranfor <- foreach(i = 1:1000, .packages = "randomForest") %dopar% {
-  # Sample data with replacement
-  sampled_data <- fish_click_df[sample(nrow(fish_click_df), replace = TRUE), ]
+click_df_long <- click_df %>% pivot_longer(!species, names_to = "variable", values_to = "values")
   
-  # Fit the random forest model on the sampled data
-  randomForest(formula,
-               data = sampled_data,
-               ntree = 1,  # Each iteration only grows one tree
-               importance = TRUE,
-               replace = FALSE,
-               proximity = TRUE,
-               sampsize = c(9, 9))
-}
+ggplot(click_df_long, aes(x = species, y = values))+
+  geom_boxplot()+
+  facet_wrap(.~variable, scales = "free")+
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
 
-# Stop the parallel computation and clean up
-stopCluster(cl)
-registerDoSEQ()  # Set the backend to sequential processing
 
-# Extract the final random forest model from the list
-final_model <- combine(fish_ranfor)
+## just look at ici
+All_ici_data <- click_df_long %>% filter(variable=="All_ici")
 
-# Access individual trees in the random forest model using `final_model$forest`
-# For example, to access the first tree, use `final_model$forest[[1]]`
+ggplot(All_ici_data, aes(x = species, y = values))+
+  geom_boxplot()+
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
 
+## look at ici for only beluga and narwhal events
+whale_ici_data <- click_df_long %>% filter(variable=="All_ici",species!="Noise")
+
+ggplot(whale_ici_data, aes(x = species, y = values))+
+  geom_boxplot()+
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+## select only events where All_ici < 1 sec
+click_df_filter <- click_df %>% filter(All_ici<1)
+click_df_filter_long <- click_df_filter %>% pivot_longer(!species, names_to = "variable", values_to = "values")
+
+ggplot(click_df_filter_long, aes(x = species, y = values))+
+  geom_boxplot()+
+  facet_wrap(.~variable, scales = "free")+
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
 ```
 
+```{r rerun random forest with filtered data}
+## load data
+load(file=here("R/Rdata/1hr/fish_click_df.rdata"))
+load(file=here("R/Rdata/1hr/kong_click_df.rdata"))
 
+## join the datasets
+click_data_df <- rbind(fish_click_df,kong_click_df)
 
-```{r RF sensitivity analyses}
-## run the RF model over all combinations of mtry and sampsize
+## select only beluga and narwhal clicks
+whale_df <- click_data_df %>% filter(species!='Noise')
 
-## make master df with all possible combinations of mtry and sampsize
-mtry <- rep(2:19, each = 17)
-sampsize <- rep(2:18, 18)
-params <- cbind(mtry, sampsize)
+## filter out events with All_ici > 1 sec
+click_df_filter <- click_data_df %>% filter(All_ici<1)
+whale_df_filter <- whale_df %>% filter(All_ici<1)
 
-## loop over all possible combinations
-master_df <- as.data.frame(matrix(nrow = nrow(params), ncol = 1))
-yy <- Narluga.data$species
+## make sure species is a factor
+click_df_filter$species <- as.factor(click_df_filter$species)
+whale_df_filter$species <- as.factor(whale_df_filter$species)
 
-for (i in 1:nrow(params)){
-ranfor <- randomForest(species ~ duration + peak + peak2 + peak3 + trough + trough2 + peakToPeak2 + peakToPeak3 + peak2ToPeak3 + Q_10dB + Q_3dB + centerHz_10dB + centerHz_3dB + fmin_10dB + fmax_10dB + fmin_3dB + fmax_3dB + BW_10dB + BW_3dB + ici, 
-                       data = Narluga.data, 
+## Run random forest model (without peakTime, dBPP, and noiseLevel)
+ranfor <- randomForest(species ~ duration + peak + peak2 + peak3 + trough + trough2 + peakToPeak2 + peakToPeak3 + peak2ToPeak3 + Q_10dB + fmin_10dB + fmax_10dB + BW_10dB + centerkHz_10dB + Q_3dB + fmin_3dB + fmax_3dB + BW_3dB + centerkHz_3dB + All_ici, 
+                       data = whale_df_filter, 
                        ntree = 10000, 
                        importance = TRUE,
-                       replace = FALSE, 
-                       proximity = TRUE, 
-                       sampsize = as.vector(c(params[i,2],params[i,2])),
-                       mtry = params[i,1])
-## calculate accuracy
-rfpred <- predict(ranfor)
-accuracy <- caret::confusionMatrix(rfpred, yy)
-master_df[i,1] <- accuracy$overall[1]
+                       replace = TRUE, 
+                       proximity = TRUE)
 
-}
+ranfor
+```
 
-## combine dfs
-sensitivity <- cbind(params, master_df)
-sensitivity
 
-## calculate % range of model output
-max(sensitivity$V1) - min(sensitivity$V1)
+```{r use SPL difference}
+fish_beluga  <- read.csv(here("R/spreadsheets/SPL_difference/0kHz_highpass/fish_beluga_spectral_data_1hr.csv"))
+fish_narwhal <- read.csv(here("R/spreadsheets/SPL_difference/0kHz_highpass/fish_narwhal_spectral_data_1hr.csv"))
+fish_noise   <- read.csv(here("R/spreadsheets/SPL_difference/0kHz_highpass/fish_noise_spectral_data_1hr.csv"))
+kong_beluga  <- read.csv(here("R/spreadsheets/SPL_difference/0kHz_highpass/kong_beluga_spectral_data_1hr.csv"))
+kong_narwhal <- read.csv(here("R/spreadsheets/SPL_difference/0kHz_highpass/kong_narwhal_spectral_data_1hr.csv"))
+kong_noise   <- read.csv(here("R/spreadsheets/SPL_difference/0kHz_highpass/kong_noise_spectral_data_1hr.csv"))
+
+fish_bel_df <- fish_beluga %>% select(c(evNum,band_diff_16to23_dB,band_diff_23to46_dB)) %>% mutate(species="Beluga")
+fish_nar_df <- fish_narwhal %>% select(c(evNum,band_diff_16to23_dB,band_diff_23to46_dB)) %>% mutate(species="Narwhal")
+fish_nos_df <- fish_noise %>% select(c(evNum,band_diff_16to23_dB,band_diff_23to46_dB)) %>% mutate(species="Noise")
+kong_bel_df <- kong_beluga %>% select(c(evNum,band_diff_16to23_dB,band_diff_23to46_dB)) %>% mutate(species="Beluga")
+kong_nar_df <- kong_narwhal %>% select(c(evNum,band_diff_16to23_dB,band_diff_23to46_dB)) %>% mutate(species="Narwhal")
+kong_nos_df <- kong_noise %>% select(c(evNum,band_diff_16to23_dB,band_diff_23to46_dB)) %>% mutate(species="Noise")
+
+SPL_diff_df <- rbind(fish_bel_df,fish_nar_df,fish_nos_df,kong_bel_df,kong_nar_df,kong_nos_df)
+```
+
+
+```{r run model}
+## select only whale events
+whale_SPL_diff_df <- SPL_diff_df %>% filter(species!="Noise")
+
+## make sure species is a factor
+SPL_diff_df$species <- as.factor(SPL_diff_df$species)
+whale_SPL_diff_df$species <- as.factor(whale_SPL_diff_df$species)
+
+## Run random forest model (without peakTime, dBPP, and noiseLevel)
+ranfor <- randomForest(species ~ band_diff_16to23_dB + band_diff_23to46_dB, 
+                       data = SPL_diff_df, 
+                       ntree = 10000, 
+                       importance = TRUE,
+                       replace = TRUE, 
+                       proximity = TRUE)
+
+ranfor
+
+varImpPlot(ranfor)
+
 
 ```
 
 
-```{r significance}
-library(caret)
-rfpred <- predict(ranfor)
-yy <- as.factor(Narluga.data$species)
-## calculate accuracy and kappa coefficient
-caret <- caret::confusionMatrix(rfpred, yy)
-caret$overall[1]
-```
 
-***
-## MDS/PCoA of Random Forest
+```{r box plots SPL}
+SPL_diff_df_long <- SPL_diff_df %>% pivot_longer(!c(species,evNum), names_to = "variable", values_to = "values")
 
-```{r proximityplot}
-#### proximity plot that runs MDS on random forest proximity scores-------------------
-library(ggplot2)
-library(rfPermute)
-library(vegan)
-library(RColorBrewer)
-library(patchwork)
-
-#### calculate percent of variation explained for each dimension in MDS
-proximity.matrix <- ranfor$proximity
-## create euclidean distance matrix using proximity values from random forest
-ranfor.euclid <- vegdist(proximity.matrix, method = "euclidean")
-## perform PCoA/MDS
-ranfor.pcoa <- cmdscale(ranfor.euclid, k = 80, eig = TRUE, add = TRUE)
-
-## percent variation explained by any principal coordinate
-eig <- ranfor.pcoa$eig / sum(ranfor.pcoa$eig)*100
-head(eig)
-
-species <- Narluga.data$species
-
-#### Plot proximity scores and var imp ---------------------------------------------
-rf.plot <- plotProximity(ranfor, group.type = "hull", 
-              point.size = 2, circle.size = 6, 
-              class.cols = c("#238b45", "#6a51a3"), 
-              group.alpha = 0.2)
-pp1 <- rf.plot$g + 
-  theme_light() +
-  xlab("Dimension 1 (98.3%)") + ylab("Dimension 2 (0.8%)") +
-  theme(#legend.position = "none",
-        legend.position = "right",
-        legend.title = element_blank(),
-        panel.grid.major = element_blank(), 
-        panel.grid.minor = element_blank(),
-        axis.text.y=element_blank(),
-        axis.text.x=element_blank(),
-        axis.ticks.y=element_blank(),
-        axis.ticks.x=element_blank())
-  # annotate("text", x=-0.3, y=0.38, label="a", 
-  #          size = 6)
-
-## produces heatmap of variable importance scores
-## code from Eric Archer
-impHeatmap <- function(rf, n = NULL, ranks = TRUE, plot = TRUE, xlab = NULL, 
-                       ylab = NULL, scale = TRUE, alpha = 0.05) {
-  if(rf$type != "classification") stop("'rf' must be a classification model")
-  classes <- levels(rf$y)
-  if(!all(classes %in% colnames(rf$importance))) {
-    stop("'rf' must be run with 'importance = TRUE'")
-  }
-  
-  # format importance data.frame
-  imp <- data.frame(
-    randomForest::importance(rf, scale = scale), 
-    check.names = FALSE
-  )
-  imp.val <- imp$MeanDecreaseAccuracy
-  imp$predictor <- names(imp.val) <- rownames(imp)
-  if(ranks) for(x in classes) imp[[x]] <- rank(-imp[[x]])
-  imp <- imp[, c("predictor", classes)] %>% 
-    tidyr::gather("class", "value", -.data$predictor) %>% 
-    dplyr::mutate(
-      class = factor(.data$class, levels = levels(rf$y)),
-      predictor = factor(.data$predictor, levels = names(sort(imp.val)))
-    )
-  num.preds <- length(levels(imp$predictor))
-  n <- if(is.null(n)) length(levels(imp$predictor)) else min(c(n, num.preds))
-  imp <- imp[imp$predictor %in% levels(imp$predictor)[(num.preds - n + 1):num.preds], ]
-  imp <- droplevels(imp)
-
-  # create plot
-  g <- ggplot2::ggplot(imp, ggplot2::aes_string("class", "predictor")) +
-    ggplot2::geom_raster(ggplot2::aes_string(fill = "value")) + 
-    ggplot2::theme(panel.background = ggplot2::element_blank(),
-                   axis.ticks.y = element_blank())
-  g <- g + if(ranks) {
-    ggplot2::scale_fill_gradient2(
-      "Variable\nImportance", low="#252525", mid="#969696", high="#f0f0f0",
-       midpoint = mean(range(imp$value)), 
-      guide = ggplot2::guide_colorbar(reverse = TRUE)
-    )
-  } else {
-    ggplot2::scale_fill_gradient2(
-      "MeanDecreaseAccuracy", low="#252525", mid="#969696", high="#f0f0f0",
-      midpoint = mean(range(imp$value))
-    )
-  }
-  g <- g + if(is.null(xlab)) {
-    ggplot2::theme(axis.title.x = ggplot2::element_blank())
-  } else {
-    ggplot2::xlab(xlab)
-  }
-  g <- g + if(is.null(ylab)) {
-    ggplot2::theme(axis.title.y = ggplot2::element_blank()) 
-  } else {
-    ggplot2::ylab(ylab)
-  }
-  
-  if(inherits(rf, "rfPermute") & !is.null(rf$pval) & !is.null(alpha))  {
-    sc <- ifelse(scale, "scaled", "unscaled")
-    sig <- sapply(1:nrow(imp), function(i) {
-      pred <- as.character(imp$predictor[i])
-      cl <- as.character(imp$class[i])
-      rf$pval[pred, cl, sc] <= alpha
-    })
-    sig.df <- imp[sig, ]
-    sig.df$xmin <- as.integer(sig.df$class) - 0.5
-    sig.df$xmax <- as.integer(sig.df$class) + 0.5
-    sig.df$ymin <- as.integer(sig.df$predictor) - 0.5
-    sig.df$ymax <- as.integer(sig.df$predictor) + 0.5
-    g <- g + ggplot2::geom_rect(
-      ggplot2::aes_string(
-        xmin = "xmin", xmax = "xmax", 
-        ymin = "ymin", ymax = "ymax"
-      ),
-      data = sig.df, fill = NA, size = 1, color = "black"
-    )
-  }
-  
-  if(plot) print(g)
-  invisible(g)
-}
-
-pp2 <- impHeatmap(ranfor, ylab = "Predictor")
-
-## multipanel plot
-
-layout <- 'AAAAB'
-pp1 + pp2 + plot_layout(design = layout)
-
-
-ggsave("RF-fig.png", dpi = 600)
+ggplot(SPL_diff_df_long, aes(x = species, y = values))+
+  geom_boxplot()+
+  facet_wrap(.~variable, scales = "free")+
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
 
 ```
+
+
+```{r combine pampal data with SPL calculations}
+## load data from pampal
+load(file=here("R/Rdata/1hr/fish_click_df.rdata"))
+load(file=here("R/Rdata/1hr/kong_click_df.rdata"))
+## join the datasets
+click_data_df <- rbind(fish_click_df,kong_click_df)
+
+## load SPL data
+fish_beluga  <- read.csv(here("R/spreadsheets/SPL_difference/0kHz_highpass/fish_beluga_spectral_data_1hr.csv"))
+fish_narwhal <- read.csv(here("R/spreadsheets/SPL_difference/0kHz_highpass/fish_narwhal_spectral_data_1hr.csv"))
+fish_noise   <- read.csv(here("R/spreadsheets/SPL_difference/0kHz_highpass/fish_noise_spectral_data_1hr.csv"))
+kong_beluga  <- read.csv(here("R/spreadsheets/SPL_difference/0kHz_highpass/kong_beluga_spectral_data_1hr.csv"))
+kong_narwhal <- read.csv(here("R/spreadsheets/SPL_difference/0kHz_highpass/kong_narwhal_spectral_data_1hr.csv"))
+kong_noise   <- read.csv(here("R/spreadsheets/SPL_difference/0kHz_highpass/kong_noise_spectral_data_1hr.csv"))
+
+fish_bel_df <- fish_beluga %>% select(c(evNum,band_diff_16to23_dB,band_diff_23to46_dB))
+fish_nar_df <- fish_narwhal %>% select(c(evNum,band_diff_16to23_dB,band_diff_23to46_dB))
+fish_nos_df <- fish_noise %>% select(c(evNum,band_diff_16to23_dB,band_diff_23to46_dB))
+kong_bel_df <- kong_beluga %>% select(c(evNum,band_diff_16to23_dB,band_diff_23to46_dB))
+kong_nar_df <- kong_narwhal %>% select(c(evNum,band_diff_16to23_dB,band_diff_23to46_dB))
+kong_nos_df <- kong_noise %>% select(c(evNum,band_diff_16to23_dB,band_diff_23to46_dB))
+## join
+SPL_diff_df <- rbind(fish_bel_df,fish_nar_df,fish_nos_df,kong_bel_df,kong_nar_df,kong_nos_df)
+## rename evNum to eventId to match the other dataframe
+colnames(SPL_diff_df)[1] <- "eventId"
+
+## join dataframes with SPL dataframes
+click_data_final_df <- merge(click_data_df, SPL_diff_df, by = "eventId")
+
+## remove events that have All_ici > 1 sec
+click_data_df_filter <- click_data_final_df %>% filter(All_ici<1)
+
+```
+
+
+```{r}
+## make sure species is a factor
+click_data_df_filter$species <- as.factor(click_data_df_filter$species)
+
+## Run random forest model (without peakTime, dBPP, and noiseLevel)
+ranfor <- randomForest(species ~ duration + peak + peak2 + peak3 + trough + trough2 + peakToPeak2 + peakToPeak3 + peak2ToPeak3 + Q_10dB + fmin_10dB + fmax_10dB + BW_10dB + centerkHz_10dB + Q_3dB + fmin_3dB + fmax_3dB + BW_3dB + centerkHz_3dB + All_ici + band_diff_16to23_dB + band_diff_23to46_dB, 
+                       data = click_data_df_filter, 
+                       ntree = 10000, 
+                       importance = TRUE,
+                       replace = TRUE, 
+                       proximity = TRUE)
+
+ranfor
+
+varImpPlot(ranfor)
+
+## reduced variable model
+ranfor <- randomForest(species ~ peakToPeak2 + All_ici + band_diff_16to23_dB + band_diff_23to46_dB + peak, 
+                       data = click_data_df_filter, 
+                       ntree = 10000, 
+                       importance = TRUE,
+                       replace = TRUE, 
+                       proximity = TRUE)
+
+ranfor
+
+varImpPlot(ranfor)
+
+```
+
+
+```{r box plots SPL}
+SPL_diff_df_long <- click_data_df_filter %>% select(species,band_diff_16to23_dB,band_diff_23to46_dB) %>% pivot_longer(!species, names_to = "variable", values_to = "values")
+
+ggplot(SPL_diff_df_long, aes(x = species, y = values))+
+  geom_boxplot()+
+  facet_wrap(.~variable, scales = "free")+
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+```
+
 
