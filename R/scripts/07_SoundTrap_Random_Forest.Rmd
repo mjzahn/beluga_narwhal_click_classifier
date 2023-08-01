@@ -16,6 +16,7 @@ library(here)
 library(ggplot2)
 library(PAMpal)
 library(dplyr)
+library(tidyr)
 library(randomForest)
 ```
 
@@ -25,10 +26,31 @@ load(file=here("R/Rdata/1hr/Fish_20kHzPG_0kHzPP_1hr_wavTime_filtered_labeled.rda
 load(file=here("R/Rdata/1hr/Kong_20kHzPG_0kHzPP_1hr_wavTime_filtered_labeled.rdata"))
 ```
 
+```{r filter out noise}
+## filter out false positives using ici
+fish_dets_filter <- fish_dets_0kHzPP_filter %>% filter(All_ici<0.5) # this does not work?
+
+## remove all clicks that have an ICI > 0.5 sec
+fish_click_df <- getClickData(fish_dets_0kHzPP_filter) %>% 
+  filter(All_ici<0.5) %>% group_by(eventId) %>% 
+  summarise_all(ifelse(is.numeric(.), mean(na.rm=TRUE), first))
+
+```
+
+
 ```{r reformat data}
 ## Fisher Islands
 fish_click_df <- getClickData(fish_dets_0kHzPP_filter) %>% group_by(eventId) %>%
     summarise_all(ifelse(is.numeric(.), mean(na.rm=TRUE), first))
+
+## alternate filtering:
+## filter out false positives using ici
+fish_dets_filter <- fish_dets_0kHzPP_filter %>% filter(All_ici<0.5) # this does not work?
+
+## remove all clicks that have an ICI > 0.5 sec
+fish_click_df <- getClickData(fish_dets_0kHzPP_filter) %>% 
+  filter(All_ici<0.5) %>% group_by(eventId) %>% 
+  summarise_all(ifelse(is.numeric(.), mean(na.rm=TRUE), first))
 
 ## change names of species from numeric code to name
 fish_click_df$species[fish_click_df$species=="X085"] <- "Narwhal"
@@ -39,14 +61,19 @@ fish_click_df$species[fish_click_df$species=="NOISE"] <- "Noise"
 kong_click_df <- getClickData(kong_dets_0kHzPP_filter) %>% group_by(eventId) %>%
     summarise_all(ifelse(is.numeric(.), mean(na.rm=TRUE), first))
 
+## remove all clicks that have an ICI > 0.5 sec
+kong_click_df <- getClickData(kong_dets_0kHzPP_filter) %>% 
+  filter(All_ici<0.5) %>% group_by(eventId) %>% 
+  summarise_all(ifelse(is.numeric(.), mean(na.rm=TRUE), first))
+
 ## change names of species from numeric code to name
 kong_click_df$species[kong_click_df$species=="X085"] <- "Narwhal"
 kong_click_df$species[kong_click_df$species=="X045"] <- "Beluga"
 kong_click_df$species[kong_click_df$species=="NOISE"] <- "Noise"
 
 ## save dataframes as rdata
-save(fish_click_df, file=here("R/Rdata/1hr/fish_click_df.rdata"))
-save(kong_click_df, file=here("R/Rdata/1hr/kong_click_df.rdata"))
+save(fish_click_df, file=here("R/Rdata/1hr/fish_click_df_filtered.rdata"))
+save(kong_click_df, file=here("R/Rdata/1hr/kong_click_df_filtered.rdata"))
 
 ```
 
@@ -118,7 +145,6 @@ avSpec <- calculateAverageSpectra(ch1.Narluga.classification.NEW,
 ```
 
 ```{r look at data}
-library(tidyr)
 click_df <- click_data_df %>% select(-c(eventId,UID,UTC,Channel,angle,angleError,noiseLevel,
                                         detectorName,db,dBPP,BinaryFile))
 
@@ -128,7 +154,6 @@ ggplot(click_df_long, aes(x = species, y = values))+
   geom_boxplot()+
   facet_wrap(.~variable, scales = "free")+
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
-
 
 ## just look at ici
 All_ici_data <- click_df_long %>% filter(variable=="All_ici")
@@ -152,6 +177,7 @@ ggplot(click_df_filter_long, aes(x = species, y = values))+
   geom_boxplot()+
   facet_wrap(.~variable, scales = "free")+
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
 ```
 
 ```{r rerun random forest with filtered data}
@@ -213,8 +239,7 @@ SPL_diff_df$species <- as.factor(SPL_diff_df$species)
 whale_SPL_diff_df$species <- as.factor(whale_SPL_diff_df$species)
 
 ## Run random forest model (without peakTime, dBPP, and noiseLevel)
-ranfor <- randomForest(species ~ band_diff_16to23_dB + band_diff_23to46_dB, 
-                       data = SPL_diff_df, 
+ranfor <- randomForest(species ~ band_diff_16to23_dB + band_diff_23to46_dB,data = whale_SPL_diff_df, 
                        ntree = 10000, 
                        importance = TRUE,
                        replace = TRUE, 
