@@ -1,5 +1,5 @@
 ---
-title: "SoundTrap Random Forest"
+title: "Random Forest"
 output: pdf_document
 date: "2023-07-25"
 editor_options: 
@@ -77,7 +77,7 @@ save(kong_click_df, file=here("R/Rdata/1hr/kong_click_df_filtered.rdata"))
 
 ```
 
-```{r run random forest}
+```{r run random forest - SoundTrap data}
 ## load data
 load(file=here("R/Rdata/1hr/fish_click_df.rdata"))
 load(file=here("R/Rdata/1hr/kong_click_df.rdata"))
@@ -341,4 +341,27 @@ ggplot(SPL_diff_df_long, aes(x = species, y = values))+
 
 ```
 
+```{r}
+## load training 2013 data with SPL calculations
+train_data <- read.csv(here("R/spreadsheets/SPL_difference/model_input/training_data_spl_diff_10kHz_highpass_with-species.csv"))
+
+## select columns we need
+train_spl_data <- train_data %>% select(c(species,band_diff_16to23_dB,band_diff_23to46_dB))
+
+## make sure species is a factor
+train_spl_data$species <- as.factor(train_spl_data$species)
+
+## run random forest model
+ranfor <- randomForest(species ~ band_diff_16to23_dB + band_diff_23to46_dB, 
+                       data = train_spl_data, 
+                       ntree = 10000, 
+                       importance = TRUE,
+                       replace = TRUE, 
+                       proximity = TRUE)
+
+casePredictions(ranfor)
+
+varImpPlot(ranfor)
+
+```
 

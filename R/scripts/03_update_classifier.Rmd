@@ -28,22 +28,156 @@ Sys.setenv(TZ = 'UTC')
 
 ```
 
-```{r load data}
-## model without noise category
-load(file=here('R/Rdata/banterAll_new.rdata'))
-load(file=here('R/Rdata/bant_mdl_new.rdata'))
+Update 2013 data with updated PAMpal
 
-## load data
-# load(file='Rdata/Fisher_2019.rdata')
-load(file='Rdata/Fisher_2019_20kHz.rdata')
-load(file='Rdata/Monodontid_2013_data_ch1.rdata')
+```{r run 2013 data through updated PAMpal}
+## Create a settings object (loading databases and binaries)
+myPps <- PAMpalSettings()
+Monodontid_2013_data <- processPgDetections(myPps,mode='db',id='Narluga_043031')
+Monodontid_2013_data <- setSpecies(Monodontid_2013_data, method = 'pamguard')
+Monodontid_2013_data_ch1 <- filter(Monodontid_2013_data, Channel == '1')
 
-## load testing data
-## version with updated version of PAMGuard
-load(here("R/Rdata/1hr/Fish_20kHzPG_20kHzPP_1hr_wavTime_filtered_labeled.rdata"))
-load(here("R/Rdata/1hr/Kong_20kHzPG_20kHzPP_1hr_wavTime_filtered_labeled.rdata"))
+## calculate ICI and add to object
+Monodontid_2013_data_ch1 <- calculateICI(Monodontid_2013_data_ch1, time = 'UTC', callType="click")
+save(Monodontid_2013_data_ch1, file='Rdata/Monodontid_2013_data_ch1.rdata')
 
 ```
+
+Add SPL diff event level data to AcousticStudy objects
+
+```{r add SPL - training data}
+## load data
+load(here("R/Rdata/Monodontid_2013_data_ch1.rdata"))
+
+# load csvs with SPL data
+train_spl_df <- read.csv(here('R/spreadsheets/SPL_difference/model_input/training_data_spl_diff_10kHz_highpass.csv'))
+
+# change column names
+train_spl_df <- rename(train_spl_df, eventId=evNum)
+train_spl_df <- rename(train_spl_df, spl_16to23_dB=band_diff_16to23_dB)
+train_spl_df <- rename(train_spl_df, spl_23to46_dB=band_diff_23to46_dB)
+
+# addMeasures function added in PAMpal v0.20.2
+# Only use first 3 columns of splDf because we dont want "n_dets" for modeling
+# Only requirement for "measures" is an "eventId" column matching event names in our data
+train_data <- addMeasures(Monodontid_2013_data_ch1, measures = train_spl_df[2:4])
+# this will show what we've added for each event
+getMeasures(train_data)
+
+# save updated AcousticStudy object with SPL diff
+save(train_data, file=here("R/Rdata/train_data.Rdata"))
+
+# these will automatically get exported now with export_banter
+# This should tell you that it found 2 event level measures that are exported
+train_banterData <- export_banter(train_data)
+# should see the band_diff_xxx data with our event data
+train_banterData$events
+
+```
+
+```{r add SPL - Fisher data}
+## load data - 20 kHz highpass version
+load(here("R/Rdata/1hr/Fish_20kHzPG_20kHzPP_1hr_wavTime_filtered_labeled.rdata"))
+
+# load csvs with SPL data
+fish_spl_df <- read.csv(here('R/spreadsheets/SPL_difference/model_input/testing_fish_data_spl_diff_20kHz_highpass.csv'))
+
+# change column names
+fish_spl_df <- rename(fish_spl_df, eventId=evNum)
+fish_spl_df <- rename(fish_spl_df, spl_16to23_dB=band_diff_16to23_dB)
+fish_spl_df <- rename(fish_spl_df, spl_23to46_dB=band_diff_23to46_dB)
+
+# addMeasures function added in PAMpal v0.20.2
+# Only use first 3 columns of splDf because we dont want "n_dets" for modeling
+# Only requirement for "measures" is an "eventId" column matching event names in our data
+fish_test_data <- addMeasures(fish_dets_20kHzPP_filter, measures = fish_spl_df[2:4])
+# this will show what we've added for each event
+getMeasures(fish_test_data)
+
+# save updated AcousticStudy object with SPL diff
+save(fish_test_data, file=here("R/Rdata/test_data_fish.Rdata"))
+
+```
+
+
+```{r add SPL - Kong Oscar data}
+## load data
+load(here("R/Rdata/1hr/Kong_20kHzPG_20kHzPP_1hr_wavTime_filtered_labeled.rdata"))
+
+# load csvs with SPL data
+kong_spl_df <- read.csv(here('R/spreadsheets/SPL_difference/model_input/testing_kong_data_spl_diff_20kHz_highpass.csv'))
+
+# change column names
+kong_spl_df <- rename(kong_spl_df, eventId=evNum)
+kong_spl_df <- rename(kong_spl_df, spl_23to46_dB=band_diff_23to46_dB)
+kong_spl_df <- rename(kong_spl_df, spl_16to23_dB=band_diff_16to23_dB)
+
+# addMeasures function added in PAMpal v0.20.2
+# Only use first 3 columns of splDf because we dont want "n_dets" for modeling
+# Only requirement for "measures" is an "eventId" column matching event names in our data
+kong_test_data <- addMeasures(kong_dets_20kHzPP_filter, measures = kong_spl_df[2:4])
+# this will show what we've added for each event
+getMeasures(kong_test_data)
+
+# save updated AcousticStudy object with SPL diff
+save(kong_test_data, file=here("R/Rdata/test_data_kong.Rdata"))
+
+```
+
+Train banter model with 2013 data
+
+```{r rerun Banter training model - Only Det 2 and 3}
+## export banter model
+load(here("R/Rdata/train_data.Rdata"))
+
+banterAll <- export_banter(train_data,dropVars = c('noiseLevel','dBPP','peakTime'))
+
+## initialize banter model
+bant.mdl <- initBanterModel(banterAll$events)
+
+## look at detector names and order
+names(banterAll$detectors)
+
+## run RF models for each Detector added-------------------------------------
+bant.mdl <- addBanterDetector(
+  bant.mdl, 
+  data = banterAll$detectors[c(2,3)], # includes only Detectors 2 and 3
+  ntree = 10000, 
+  sampsize = 50,
+  importance = TRUE
+)
+## look at summary of Detector models
+## this shows correct classification rate for each species in each detector
+summary(bant.mdl)
+plotDetectorTrace(bant.mdl)
+
+## run Event model------------------------------------------------------------
+bant.mdl <- runBanterModel(bant.mdl, ntree = 10000, sampsize = 9)
+
+## look at summary for Event model
+summary(bant.mdl)
+
+## get RF data from banter model
+event.rf <- getBanterModel(bant.mdl, "event")
+
+## SUMMARIES
+rfPermute::plotVotes(event.rf)
+rfPermute::plotProximity(event.rf)
+rfPermute::casePredictions(event.rf)
+
+## OTHER THINGS TO LOOK INTO: -------------------------------
+## get RF data for specific detector - example of Det 5:
+(event.rf.Det4 <- getBanterModel(bant.mdl, "Click_Detector_4"))
+
+## examine model stability
+rfPermute::plotTrace(event.rf)
+rfPermute::plotInbag(event.rf)
+
+## get predictor names for event level RF model
+colnames(bant.mdl@model.data)
+
+## save model
+save(bant.mdl, file=here("R/Rdata/train_bant_mdl.Rdata"))
 
 ```
 
