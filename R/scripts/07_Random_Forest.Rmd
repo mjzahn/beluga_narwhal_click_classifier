@@ -220,41 +220,30 @@ ranfor
 ```
 
 
-```{r use SPL difference}
-fish_beluga  <- read.csv(here("R/spreadsheets/SPL_difference/0kHz_highpass/fish_beluga_spectral_data_1hr.csv"))
-fish_narwhal <- read.csv(here("R/spreadsheets/SPL_difference/0kHz_highpass/fish_narwhal_spectral_data_1hr.csv"))
-fish_noise   <- read.csv(here("R/spreadsheets/SPL_difference/0kHz_highpass/fish_noise_spectral_data_1hr.csv"))
-kong_beluga  <- read.csv(here("R/spreadsheets/SPL_difference/0kHz_highpass/kong_beluga_spectral_data_1hr.csv"))
-kong_narwhal <- read.csv(here("R/spreadsheets/SPL_difference/0kHz_highpass/kong_narwhal_spectral_data_1hr.csv"))
-kong_noise   <- read.csv(here("R/spreadsheets/SPL_difference/0kHz_highpass/kong_noise_spectral_data_1hr.csv"))
+```{r use SPL difference - pooled data}
+fish_test_data <- read.csv(here("R/spreadsheets/SPL_difference/model_input/testing_fish_data_spl_diff_0kHz_highpass.csv"))
+kong_test_data <- read.csv(here("R/spreadsheets/SPL_difference/model_input/testing_kong_data_spl_diff_0kHz_highpass.csv"))
 
-fish_bel_df <- fish_beluga %>% select(c(evNum,band_diff_16to23_dB,band_diff_23to46_dB)) %>% mutate(species="Beluga")
-fish_nar_df <- fish_narwhal %>% select(c(evNum,band_diff_16to23_dB,band_diff_23to46_dB)) %>% mutate(species="Narwhal")
-fish_nos_df <- fish_noise %>% select(c(evNum,band_diff_16to23_dB,band_diff_23to46_dB)) %>% mutate(species="Noise")
-kong_bel_df <- kong_beluga %>% select(c(evNum,band_diff_16to23_dB,band_diff_23to46_dB)) %>% mutate(species="Beluga")
-kong_nar_df <- kong_narwhal %>% select(c(evNum,band_diff_16to23_dB,band_diff_23to46_dB)) %>% mutate(species="Narwhal")
-kong_nos_df <- kong_noise %>% select(c(evNum,band_diff_16to23_dB,band_diff_23to46_dB)) %>% mutate(species="Noise")
+## select columns we need
+fish_test_data_select <- fish_test_data %>% select(c(species,spl_diff_16to23_dB,spl_diff_23to46_dB)) %>% filter(species!='NOISE')
+kong_test_data_select <- kong_test_data %>% select(c(species,spl_diff_16to23_dB,spl_diff_23to46_dB)) %>% filter(species!='NOISE')
 
-SPL_diff_df <- rbind(fish_bel_df,fish_nar_df,fish_nos_df,kong_bel_df,kong_nar_df,kong_nos_df)
+SPL_diff_df <- rbind(fish_test_data_select,kong_test_data_select)
 ```
 
-
 ```{r run model}
-## select only whale events
-whale_SPL_diff_df <- SPL_diff_df %>% filter(species!="Noise")
-
 ## make sure species is a factor
 SPL_diff_df$species <- as.factor(SPL_diff_df$species)
-whale_SPL_diff_df$species <- as.factor(whale_SPL_diff_df$species)
 
 ## Run random forest model (without peakTime, dBPP, and noiseLevel)
-ranfor <- randomForest(species ~ band_diff_16to23_dB + band_diff_23to46_dB,data = whale_SPL_diff_df, 
+ranfor_soundtrap <- randomForest(species ~ spl_diff_16to23_dB + spl_diff_23to46_dB,
+                       data = SPL_diff_df, 
                        ntree = 10000, 
                        importance = TRUE,
                        replace = TRUE, 
                        proximity = TRUE)
 
-ranfor
+ranfor_soundtrap
 
 varImpPlot(ranfor)
 
@@ -352,25 +341,163 @@ ggplot(SPL_diff_df_long, aes(x = species, y = values))+
 
 ```{r}
 ## load training 2013 data with SPL calculations
-train_data <- read.csv(here("R/spreadsheets/SPL_difference/model_input/training_data_spl_diff_10kHz_highpass_with-species.csv"))
+train_data <- read.csv(here("R/spreadsheets/SPL_difference/model_input/training_data_spl_diff.csv"))
 
 ## select columns we need
-train_spl_data <- train_data %>% select(c(species,band_diff_16to23_dB,band_diff_23to46_dB))
+train_spl_data <- train_data %>% select(c(species,spl_diff_16to23_dB,spl_diff_23to46_dB))
+
+## modify species code to match testing dataset
+train_spl_data$species[train_spl_data$species==85] <- 'X085'
+train_spl_data$species[train_spl_data$species==45] <- 'X045'
 
 ## make sure species is a factor
 train_spl_data$species <- as.factor(train_spl_data$species)
 
 ## run random forest model
-ranfor <- randomForest(species ~ band_diff_16to23_dB + band_diff_23to46_dB, 
+ranfor <- randomForest(species ~ spl_diff_16to23_dB + spl_diff_23to46_dB, 
                        data = train_spl_data, 
                        ntree = 10000, 
                        importance = TRUE,
                        replace = TRUE, 
                        proximity = TRUE)
 
+ranfor
+
 casePredictions(ranfor)
 
 varImpPlot(ranfor)
 
+```
+
+
+```{r use reson data to predict SoundTrap}
+## make sure species is a factor
+SPL_diff_df$species <- as.factor(SPL_diff_df$species)
+
+y_pred <- predict(ranfor, newdata=SPL_diff_df[,2:3])
+y_pred
+
+## make confusion matrix
+table(SPL_diff_df[,1], y_pred)
+
+```
+
+
+```{r use SoundTrap to predict reson}
+## make sure species is a factor
+SPL_diff_df$species <- as.factor(SPL_diff_df$species)
+
+y_pred <- predict(ranfor_soundtrap, newdata=train_spl_data[,2:3])
+y_pred
+
+## make confusion matrix
+table(train_spl_data[,1], y_pred)
+
+```
+
+```{r run separate RF models for Fisher and Kong}
+## make sure species is a factor
+fish_test_data_select$species <- as.factor(fish_test_data_select$species)
+kong_test_data_select$species <- as.factor(kong_test_data_select$species)
+
+## run random forest model
+ranfor_fish <- randomForest(species ~ spl_diff_16to23_dB + spl_diff_23to46_dB, 
+                       data = fish_test_data_select, 
+                       ntree = 10000, 
+                       importance = TRUE,
+                       replace = TRUE, 
+                       proximity = TRUE)
+
+ranfor_fish
+
+## run random forest model
+ranfor_kong <- randomForest(species ~ spl_diff_16to23_dB + spl_diff_23to46_dB, 
+                       data = kong_test_data_select, 
+                       ntree = 10000, 
+                       importance = TRUE,
+                       replace = TRUE, 
+                       proximity = TRUE)
+
+ranfor_kong
+
+```
+
+```{r Use one dataset to predict the other}
+y_pred_kong <- predict(ranfor_fish, newdata=kong_test_data_select[,2:3])
+y_pred_kong
+
+y_pred_fish <- predict(ranfor_kong, newdata=fish_test_data_select[,2:3])
+y_pred_fish
+
+## make confusion matrix
+table(kong_test_data_select[,1], y_pred_kong)
+table(fish_test_data_select[,1], y_pred_fish)
+```
+
+```{r run RF models with noise category}
+fish_test_data <- read.csv(here("R/spreadsheets/SPL_difference/model_input/testing_fish_data_spl_diff_0kHz_highpass.csv"))
+kong_test_data <- read.csv(here("R/spreadsheets/SPL_difference/model_input/testing_kong_data_spl_diff_0kHz_highpass.csv"))
+
+## select columns we need
+fish_test_data_select <- fish_test_data %>% select(c(species,spl_diff_16to23_dB,spl_diff_23to46_dB))
+kong_test_data_select <- kong_test_data %>% select(c(species,spl_diff_16to23_dB,spl_diff_23to46_dB))
+
+SPL_diff_df <- rbind(fish_test_data_select,kong_test_data_select)
+
+## make sure species is a factor
+SPL_diff_df$species <- as.factor(SPL_diff_df$species)
+
+## Run random forest model
+ranfor_soundtrap <- randomForest(species ~ spl_diff_16to23_dB + spl_diff_23to46_dB,
+                       data = SPL_diff_df, 
+                       ntree = 10000, 
+                       importance = TRUE,
+                       replace = TRUE, 
+                       proximity = TRUE)
+
+ranfor_soundtrap
+
+varImpPlot(ranfor)
+
+```
+
+```{r run seperate models with noise}
+## make sure species is a factor
+fish_test_data_select$species <- as.factor(fish_test_data_select$species)
+kong_test_data_select$species <- as.factor(kong_test_data_select$species)
+
+## Run random forest model
+ranfor_fish <- randomForest(species ~ spl_diff_16to23_dB + spl_diff_23to46_dB,
+                       data = fish_test_data_select, 
+                       ntree = 10000, 
+                       importance = TRUE,
+                       replace = TRUE, 
+                       proximity = TRUE)
+
+ranfor_fish
+
+## Run random forest model
+ranfor_kong <- randomForest(species ~ spl_diff_16to23_dB + spl_diff_23to46_dB,
+                       data = kong_test_data_select, 
+                       ntree = 10000, 
+                       importance = TRUE,
+                       replace = TRUE, 
+                       proximity = TRUE)
+
+ranfor_kong
+
+```
+
+
+```{r Use one dataset to predict the other}
+y_pred_kong <- predict(ranfor_fish, newdata=kong_test_data_select[,2:3])
+y_pred_kong
+
+y_pred_fish <- predict(ranfor_kong, newdata=fish_test_data_select[,2:3])
+y_pred_fish
+
+## make confusion matrix
+table(kong_test_data_select[,1], y_pred_kong)
+table(fish_test_data_select[,1], y_pred_fish)
 ```
 

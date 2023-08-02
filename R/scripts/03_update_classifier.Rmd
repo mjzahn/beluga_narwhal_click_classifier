@@ -50,17 +50,14 @@ Add SPL diff event level data to AcousticStudy objects
 load(here("R/Rdata/Monodontid_2013_data_ch1.rdata"))
 
 # load csvs with SPL data
-train_spl_df <- read.csv(here('R/spreadsheets/SPL_difference/model_input/training_data_spl_diff_10kHz_highpass.csv'))
+train_spl_df <- read.csv(here('R/spreadsheets/SPL_difference/model_input/training_data_spl_diff.csv'))
 
-# change column names
-train_spl_df <- rename(train_spl_df, eventId=evNum)
-train_spl_df <- rename(train_spl_df, spl_16to23_dB=band_diff_16to23_dB)
-train_spl_df <- rename(train_spl_df, spl_23to46_dB=band_diff_23to46_dB)
+train_spl_df_select <- train_spl_df %>% select(c(eventId,spl_diff_16to23_dB,spl_diff_23to46_dB))
 
 # addMeasures function added in PAMpal v0.20.2
 # Only use first 3 columns of splDf because we dont want "n_dets" for modeling
 # Only requirement for "measures" is an "eventId" column matching event names in our data
-train_data <- addMeasures(Monodontid_2013_data_ch1, measures = train_spl_df[2:4])
+train_data <- addMeasures(Monodontid_2013_data_ch1, measures = train_spl_df_select)
 # this will show what we've added for each event
 getMeasures(train_data)
 
@@ -80,22 +77,21 @@ train_banterData$events
 load(here("R/Rdata/1hr/Fish_20kHzPG_20kHzPP_1hr_wavTime_filtered_labeled.rdata"))
 
 # load csvs with SPL data
-fish_spl_df <- read.csv(here('R/spreadsheets/SPL_difference/model_input/testing_fish_data_spl_diff_20kHz_highpass.csv'))
+fish_spl_20kHz_df <- read.csv(here('R/spreadsheets/SPL_difference/model_input/testing_fish_data_spl_diff_20kHz_highpass.csv'))
 
-# change column names
-fish_spl_df <- rename(fish_spl_df, eventId=evNum)
-fish_spl_df <- rename(fish_spl_df, spl_16to23_dB=band_diff_16to23_dB)
-fish_spl_df <- rename(fish_spl_df, spl_23to46_dB=band_diff_23to46_dB)
+fish_spl_0kHz_df <- read.csv(here('R/spreadsheets/SPL_difference/model_input/testing_fish_data_spl_diff_0kHz_highpass.csv'))
+
+fish_spl_0kHz_df_select <- fish_spl_0kHz_df %>% select(c(eventId,spl_diff_16to23_dB,spl_diff_23to46_dB))
 
 # addMeasures function added in PAMpal v0.20.2
 # Only use first 3 columns of splDf because we dont want "n_dets" for modeling
 # Only requirement for "measures" is an "eventId" column matching event names in our data
-fish_test_data <- addMeasures(fish_dets_20kHzPP_filter, measures = fish_spl_df[2:4])
+fish_test_data <- addMeasures(fish_dets_20kHzPP_filter, measures = fish_spl_0kHz_df_select)
 # this will show what we've added for each event
 getMeasures(fish_test_data)
 
 # save updated AcousticStudy object with SPL diff
-save(fish_test_data, file=here("R/Rdata/test_data_fish.Rdata"))
+save(fish_test_data, file=here("R/Rdata/test_data_fish_0kHz-spl.Rdata"))
 
 ```
 
@@ -105,22 +101,21 @@ save(fish_test_data, file=here("R/Rdata/test_data_fish.Rdata"))
 load(here("R/Rdata/1hr/Kong_20kHzPG_20kHzPP_1hr_wavTime_filtered_labeled.rdata"))
 
 # load csvs with SPL data
-kong_spl_df <- read.csv(here('R/spreadsheets/SPL_difference/model_input/testing_kong_data_spl_diff_20kHz_highpass.csv'))
+kong_spl_20kHz_df <- read.csv(here('R/spreadsheets/SPL_difference/model_input/testing_kong_data_spl_diff_20kHz_highpass.csv'))
 
-# change column names
-kong_spl_df <- rename(kong_spl_df, eventId=evNum)
-kong_spl_df <- rename(kong_spl_df, spl_23to46_dB=band_diff_23to46_dB)
-kong_spl_df <- rename(kong_spl_df, spl_16to23_dB=band_diff_16to23_dB)
+kong_spl_0kHz_df <- read.csv(here('R/spreadsheets/SPL_difference/model_input/testing_kong_data_spl_diff_0kHz_highpass.csv'))
+
+kong_spl_0kHz_df_select <- kong_spl_0kHz_df %>% select(c(eventId,spl_diff_16to23_dB,spl_diff_23to46_dB))
 
 # addMeasures function added in PAMpal v0.20.2
 # Only use first 3 columns of splDf because we dont want "n_dets" for modeling
 # Only requirement for "measures" is an "eventId" column matching event names in our data
-kong_test_data <- addMeasures(kong_dets_20kHzPP_filter, measures = kong_spl_df[2:4])
+kong_test_data <- addMeasures(kong_dets_20kHzPP_filter, measures = kong_spl_0kHz_df_select)
 # this will show what we've added for each event
 getMeasures(kong_test_data)
 
 # save updated AcousticStudy object with SPL diff
-save(kong_test_data, file=here("R/Rdata/test_data_kong.Rdata"))
+save(kong_test_data, file=here("R/Rdata/test_data_kong_0kHz-spl.Rdata"))
 
 ```
 

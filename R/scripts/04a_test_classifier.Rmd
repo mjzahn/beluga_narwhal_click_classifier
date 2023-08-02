@@ -32,16 +32,23 @@ Sys.setenv(TZ = 'UTC')
 ```
 
 ```{r load data}
-## model without noise category
+## model without noise category and with SPL variables
 load(file=here('R/Rdata/train_bant_mdl.rdata'))
+## model without noise category and without SPL variables
+load(file=here('R/Rdata/bant_mdl_new.rdata'))
 
 ## load testing data
 ## these data were processed in PAMpal with 20 kHz highpass filter (and SPL calcs) and events that had few detections were removed
 load(here("R/Rdata/test_data_fish.rdata"))
 load(here("R/Rdata/test_data_kong.rdata"))
+
+## load testing data that includes SPL diff calculated with 0 kHz highpass filter
+load(here("R/Rdata/test_data_fish_0kHz-spl.Rdata"))
+load(here("R/Rdata/test_data_kong_0kHz-spl.Rdata"))
+
 ```
 
-```{r}
+```{r look at training model with spl diff}
 ## look at training model with SPL diff
 summary(bant.mdl)
 
@@ -94,9 +101,9 @@ for (i in 1:length(kong_dets_20kHzPP_filter@events)) {
 
 ```
 
-## Test banter model with SoundTrap testing datasets
+## Test banter model with SoundTrap data - without SPL vars
 
-```{r}
+```{r test whale model without SPL vars}
 ## remove noise events
 fish_whale_data <- fish_test_data %>% filter(species!='NOISE')
 kong_whale_data <- kong_test_data %>% filter(species!='NOISE')
@@ -104,10 +111,10 @@ kong_whale_data <- kong_test_data %>% filter(species!='NOISE')
 ## Export data from AcousticStudy into format required to run a BANTER model
 ## Fisher islands
 banter_fish <- export_banter(fish_whale_data,
-                             dropVars = c('noiseLevel', 'dBPP', 'peakTime'))
+                             dropVars = c('noiseLevel', 'dBPP', 'peakTime', 'spl_16to23_dB', 'spl_23to46_dB'))
 ## Kong Oscar
 banter_kong <- export_banter(kong_whale_data,
-                             dropVars = c('noiseLevel', 'dBPP', 'peakTime'))
+                             dropVars = c('noiseLevel', 'dBPP', 'peakTime', 'spl_16to23_dB', 'spl_23to46_dB'))
 
 # filter out clicks that were not detected in click detector 2
 banter_fish$detectors$Click_Detector_2<-filter(banter_fish$detectors$Click_Detector_2, peak>20 & peak<50)
@@ -118,15 +125,69 @@ banter_kong$detectors$Click_Detector_3<-filter(banter_kong$detectors$Click_Detec
 
 # predict species with novel data
 # score_Fisher <- predict(bant.mdl_new, banter_Fisher)
-score_fish_whale <- predict(bant.mdl, banter_fish)
+score_fish_whale <- predict(bant.mdl_new, banter_fish)
 score_fish_whale
 
 # save model result
 save(score_fish_whale, file=here("R/Rdata/model_results/score_fish_whale.rdata"))
 
 # score_kong <- predict(bant.mdl_new, banter_kong)
-score_kong_whale <- predict(bant.mdl, banter_kong)
+score_kong_whale <- predict(bant.mdl_new, banter_kong)
 score_kong_whale
+
+## look at beluga predictions
+score_fish_whale$predict.df[score_fish_whale$predict.df$original == "X045",]
+score_kong_whale$predict.df[score_kong_whale$predict.df$original == "X045",]
+
+## look at narwhal predictions
+score_fish_whale$predict.df[score_fish_whale$predict.df$original == "X085",]
+score_kong_whale$predict.df[score_kong_whale$predict.df$original == "X085",]
+
+```
+
+## Save model output and scores
+
+```{r save classification scores}
+save(score_fish_whale,file=here('R/Rdata/score_fish_whale.rdata'))
+save(score_kong_whale,file=here('R/Rdata/score_kong_whale.rdata'))
+
+write.csv(score_kong_whale$predict.df, here('R/Kong_scores_whale.csv'))
+write.csv(score_fish_whale$predict.df, here('R/Fish_scores_whale.csv'))
+```
+
+## Test banter model with SoundTrap data - with SPL vars calculated with 20 kHz highpass
+
+```{r test whale model with SPL vars}
+## remove noise events
+fish_whale_data <- fish_test_data %>% filter(species!='NOISE')
+kong_whale_data <- kong_test_data %>% filter(species!='NOISE')
+
+## Export data from AcousticStudy into format required to run a BANTER model
+## Fisher islands
+banter_fish_spl <- export_banter(fish_whale_data,
+                             dropVars = c('noiseLevel', 'dBPP', 'peakTime'))
+## Kong Oscar
+banter_kong_spl <- export_banter(kong_whale_data,
+                             dropVars = c('noiseLevel', 'dBPP', 'peakTime'))
+
+# filter out clicks that were not detected in click detector 2
+banter_fish_spl$detectors$Click_Detector_2<-filter(banter_fish_spl$detectors$Click_Detector_2, peak>20 & peak<50)
+banter_fish_spl$detectors$Click_Detector_3<-filter(banter_fish_spl$detectors$Click_Detector_3, peak>50 & peak<70)
+
+banter_kong_spl$detectors$Click_Detector_2<-filter(banter_kong_spl$detectors$Click_Detector_2, peak>20 & peak<50)
+banter_kong_spl$detectors$Click_Detector_3<-filter(banter_kong_spl$detectors$Click_Detector_3, peak>50 & peak<70)
+
+# predict species with novel data
+# score_Fisher <- predict(bant.mdl_new, banter_Fisher)
+score_fish_whale_spl <- predict(bant.mdl, banter_fish_spl)
+score_fish_whale_spl
+
+# save model result
+save(score_fish_whale, file=here("R/Rdata/model_results/score_fish_whale.rdata"))
+
+# score_kong <- predict(bant.mdl_new, banter_kong)
+score_kong_whale_spl <- predict(bant.mdl, banter_kong_spl)
+score_kong_whale_spl
 
 ## look at beluga predictions
 score_fish_whale$predict.df[score_fish_whale$predict.df$original == "X045",]
@@ -141,6 +202,57 @@ score_fish_whale$predict.df[score_fish_whale$predict.df$original == "NOISE",]
 score_kong_whale$predict.df[score_kong_whale$predict.df$original == "NOISE",]
 
 ```
+
+
+## Test banter model with SoundTrap data - with SPL vars calculated with 0 kHz highpass
+
+```{r test whale model with SPL vars}
+## remove noise events
+fish_whale_data <- fish_test_data %>% filter(species!='NOISE')
+kong_whale_data <- kong_test_data %>% filter(species!='NOISE')
+
+## Export data from AcousticStudy into format required to run a BANTER model
+## Fisher islands
+banter_fish_spl <- export_banter(fish_whale_data,
+                             dropVars = c('noiseLevel', 'dBPP', 'peakTime'))
+## Kong Oscar
+banter_kong_spl <- export_banter(kong_whale_data,
+                             dropVars = c('noiseLevel', 'dBPP', 'peakTime'))
+
+# filter out clicks that were not detected in click detector 2
+banter_fish_spl$detectors$Click_Detector_2<-filter(banter_fish_spl$detectors$Click_Detector_2, peak>20 & peak<50)
+banter_fish_spl$detectors$Click_Detector_3<-filter(banter_fish_spl$detectors$Click_Detector_3, peak>50 & peak<70)
+
+banter_kong_spl$detectors$Click_Detector_2<-filter(banter_kong_spl$detectors$Click_Detector_2, peak>20 & peak<50)
+banter_kong_spl$detectors$Click_Detector_3<-filter(banter_kong_spl$detectors$Click_Detector_3, peak>50 & peak<70)
+
+# predict species with novel data
+# score_Fisher <- predict(bant.mdl_new, banter_Fisher)
+score_fish_whale_spl <- predict(bant.mdl, banter_fish_spl)
+score_fish_whale_spl
+
+# save model result
+save(score_fish_whale, file=here("R/Rdata/model_results/score_fish_whale.rdata"))
+
+# score_kong <- predict(bant.mdl_new, banter_kong)
+score_kong_whale_spl <- predict(bant.mdl, banter_kong_spl)
+score_kong_whale_spl
+
+## look at beluga predictions
+score_fish_whale_spl$predict.df[score_fish_whale_spl$predict.df$original == "X045",]
+score_kong_whale_spl$predict.df[score_kong_whale_spl$predict.df$original == "X045",]
+
+## look at narwhal predictions
+score_fish_whale$predict.df[score_fish_whale$predict.df$original == "X085",]
+score_kong_whale$predict.df[score_kong_whale$predict.df$original == "X085",]
+
+## look at noise predictions
+score_fish_whale$predict.df[score_fish_whale$predict.df$original == "NOISE",]
+score_kong_whale$predict.df[score_kong_whale$predict.df$original == "NOISE",]
+
+```
+
+
 
 ## Save model output and scores
 
