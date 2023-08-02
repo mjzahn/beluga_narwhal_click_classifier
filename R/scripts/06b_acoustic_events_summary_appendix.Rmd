@@ -46,11 +46,11 @@ library(dplyr)
 ## load Fisher data
 # load(here("R/final_test/Rdata/Fisher19_20kHzPG_15kHzPP_6hourly.rdata"))
 # load(here("R/Rdata/Fish_20kHzPG_20kHzPP_6hr_wavTime.rdata"))
-load(here('R/Rdata/1hr/Fish_20kHzPG_20kHzPP_1hr_wavTime_unfiltered_labeled.rdata'))
+load(here('R/Rdata/1hr/Fish_20kHzPG_0kHzPP_1hr_wavTime_unfiltered_labeled.rdata'))
 
 ## load Kong Oscar data
 # load(here("R/Rdata/Kong_20kHzPG_20kHzPP_6hr_wavTime.rdata"))
-load(here('R/Rdata/1hr/Kong_20kHzPG_20kHzPP_1hr_wavTime_unfiltered_labeled.rdata'))
+load(here('R/Rdata/1hr/Kong_20kHzPG_0kHzPP_1hr_wavTime_unfiltered_labeled.rdata'))
 
 ```
 
@@ -119,8 +119,8 @@ spec_calc_and_plot <- function(Acoustic_Study) {
 
     ## then plot
     avSpec_all <- calculateAverageSpectra(Acoustic_Study_thinned,wl=512,evNum=Acoustic_Study_thinned@events[[i]]@id,
-                                          sort=FALSE,noise=FALSE,filterfrom_khz=20,
-                                          title=paste0("Event #", Acoustic_Study_thinned@events[[i]]@id))
+                                          sort=FALSE,noise=TRUE,filterfrom_khz=0,
+                                          title=paste0("Event #", Acoustic_Study_thinned@events[[i]]@id),norm=FALSE)
     
     ## extract frequency values and mean spectra
     freq <- avSpec_all$freq
@@ -189,8 +189,8 @@ print_summary_table <- function(species_spec_df) {
 ```{r run filtering function, results = FALSE, include=FALSE}
 ## remove events with little to no clicks in event
 # Fish_filtered <- filter_noise_acoustic_study(Fisher19_dets_20kHzPG_15kHzPP)
-Fish_filtered <- filter_noise_acoustic_study(fish_dets_20kHzPP)
-Kong_filtered <- filter_noise_acoustic_study(kong_dets_20kHzPP)
+Fish_filtered <- filter_noise_acoustic_study(fish_dets_0kHzPP)
+Kong_filtered <- filter_noise_acoustic_study(kong_dets_0kHzPP)
 ```
 
 # Fisher Islands
@@ -208,7 +208,7 @@ par(mfrow=c(1,2))
 fish_beluga_spec_df <- spec_calc_and_plot(fish_beluga_dets)
 
 ## save dataframe as csv
-write.csv(fish_beluga_spec_df, here('R/spreadsheets/SPL_difference/fish_beluga_spectral_data_1hr.csv'))
+# write.csv(fish_beluga_spec_df, here('R/spreadsheets/SPL_difference/fish_beluga_spectral_data_1hr.csv'))
 
 ## print summary table
 print_summary_table(fish_beluga_spec_df)
@@ -230,7 +230,7 @@ par(mfrow=c(1,2))
 fish_narwhal_spec_df <- spec_calc_and_plot(fish_narwhal_dets)
 
 ## save dataframe as csv
-write.csv(fish_narwhal_spec_df, here('R/spreadsheets/SPL_difference/fish_narwhal_spectral_data_1hr.csv'))
+# write.csv(fish_narwhal_spec_df, here('R/spreadsheets/SPL_difference/fish_narwhal_spectral_data_1hr.csv'))
 
 ## print summary table
 print_summary_table(fish_narwhal_spec_df)
@@ -252,7 +252,7 @@ par(mfrow=c(1,2))
 fish_noise_spec_df <- spec_calc_and_plot(fish_noise_dets)
 
 ## save dataframe as csv
-write.csv(fish_noise_spec_df, here('R/spreadsheets/SPL_difference/fish_noise_spectral_data_1hr.csv'))
+# write.csv(fish_noise_spec_df, here('R/spreadsheets/SPL_difference/fish_noise_spectral_data_1hr.csv'))
 
 ## print summary table
 print_summary_table(fish_noise_spec_df)
@@ -277,7 +277,7 @@ par(mfrow=c(1,2))
 kong_beluga_spec_df <- spec_calc_and_plot(kong_beluga_dets)
 
 ## save dataframe as csv
-write.csv(kong_beluga_spec_df, here('R/spreadsheets/SPL_difference/kong_beluga_spectral_data_1hr.csv'))
+# write.csv(kong_beluga_spec_df, here('R/spreadsheets/SPL_difference/kong_beluga_spectral_data_1hr.csv'))
 
 ## print summary table
 print_summary_table(kong_beluga_spec_df)
@@ -299,7 +299,7 @@ par(mfrow=c(1,2))
 kong_narwhal_spec_df <- spec_calc_and_plot(kong_narwhal_dets)
 
 ## save dataframe as csv
-write.csv(kong_narwhal_spec_df, here('R/spreadsheets/SPL_difference/kong_narwhal_spectral_data_1hr.csv'))
+# write.csv(kong_narwhal_spec_df, here('R/spreadsheets/SPL_difference/kong_narwhal_spectral_data_1hr.csv'))
 
 ## print summary table
 print_summary_table(kong_narwhal_spec_df)
@@ -321,7 +321,7 @@ par(mfrow=c(1,2))
 kong_noise_spec_df <- spec_calc_and_plot(kong_noise_dets)
 
 ## save dataframe as csv
-write.csv(kong_noise_spec_df, here('R/spreadsheets/SPL_difference/kong_noise_spectral_data_1hr.csv'))
+# write.csv(kong_noise_spec_df, here('R/spreadsheets/SPL_difference/kong_noise_spectral_data_1hr.csv'))
 
 ## print summary table
 print_summary_table(kong_noise_spec_df)

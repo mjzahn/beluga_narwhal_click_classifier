@@ -37,6 +37,15 @@ fish_click_df <- getClickData(fish_dets_0kHzPP_filter) %>%
 
 ```
 
+```{r}
+## see if we can plot the noise floor
+calculateAverageSpectra(fish_dets_0kHzPP_filter,evNum='9',noise=TRUE,wl=256)
+calculateAverageSpectra(fish_dets_0kHzPP_filter,evNum='9',noise=TRUE,wl=512)
+
+calculateAverageSpectra(fish_dets_0kHzPP_filter,evNum='13',noise=TRUE,wl=128)
+calculateAverageSpectra(fish_dets_0kHzPP_filter,evNum='13',noise=TRUE,wl=512)
+```
+
 
 ```{r reformat data}
 ## Fisher Islands
