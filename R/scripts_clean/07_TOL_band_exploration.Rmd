@@ -155,7 +155,7 @@ band_45to47kHz_dB <- (avgSpec[which(freq>45000 & freq<47000)]+173) # 45-47 kHz b
 
 band_16kHz_dB <- (avgSpec[which(freq>lower_freq_16kHz & freq<upper_freq_16kHz)]+173) # 16 kHz TOL
 band_25kHz_dB <- (avgSpec[which(freq>lower_freq_25kHz & freq<upper_freq_25kHz)]+173) # 25 kHz TOL
-band_40kHz_dB <- (avgSpec[which(freq>lower_freq_40kHz & freq<upper_freq_40kHz)]+173)
+band_40kHz_dB <- (avgSpec[which(freq>lower_freq_40kHz & freq<upper_freq_40kHz)]+173) # 40 kHz TOL
 
 ## because dB is on a log scale, we must convert to linear scale and then take the mean
 ## after taking the mean, we can convert back to log scale

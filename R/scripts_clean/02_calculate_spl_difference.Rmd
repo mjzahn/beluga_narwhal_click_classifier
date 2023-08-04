@@ -7,7 +7,7 @@ editor_options:
   chunk_output_type: console
 ---
 
-# Calculate SPL difference
+# Calculate SPL difference between target frequency bands
 
 ```{r load packages and data}
 ## load required packages
@@ -19,33 +19,52 @@ library(dplyr)
 #Set time zone to UTC
 Sys.setenv(TZ = 'UTC')
 
-## full datasets v1
-# load('R/Rdata/KO19_20kHzPG_15kHzPP_6hourly.rdata')
-# load('R/Rdata/Fisher19_20kHzPG_15kHzPP_6hourly.rdata')
-
 ## full datasets - updated version of PAMGuard
 ## load Fisher data
 load(here("R/Rdata/1hr/Fish_20kHzPG_0kHzPP_1hr_wavTime_filtered_labeled.rdata"))
 ## load Kong Oscar data
 load(here("R/Rdata/1hr/Kong_20kHzPG_0kHzPP_1hr_wavTime_filtered_labeled.rdata"))
-
 ## load training 2013 data
 load(here('R/Rdata/Monodontid_2013_data_ch1.rdata'))
 ```
 
 ```{r update Binaries location on path, results = FALSE, include=FALSE}
-## if running on Desktop computer, update location of Binaries
-# fish_dets_15kHzPP<- updateFiles(fish_dets_0kHzPP, bin = here('../Fisher/Binaries'), db = here('../Fisher/PAM20209_Zahn_narluga_fisher.sqlite3'))
-# 
-# kong_dets_15kHzPP <- updateFiles(kong_dets_0kHzPP, bin = here('../Kong_Oscar/Binaries'), db = here('../Kong_Oscar/PAM20209_Zahn_narluga_kong.sqlite3'))
-
 ## 2013 training data
 monodontid_2013_data <- updateFiles(Monodontid_2013_data_ch1, bin = 'E:/MS_Chapter_2/PAMGuard/Binaries', db = 'E:/MS_Chapter_2/PAMGuard/PAM20103_Zahn_narluga-ECdetection.sqlite3')
 ```
 
+```{r calculate third octave levels}
+## for Base-ten,
+G <- 10**(3/10)
+
+# 16 kHz TOL band ----------
+x <- 42 # band number
+# midband frequency
+(freq_m <- (G**((x-30)/3)*1000))
+# calculate bandedge frequencies
+lower_freq_16kHz <- G**(-1/6)*freq_m # lower
+upper_freq_16kHz <- G**(1/6)*freq_m # upper
+
+# 25 kHz TOL band ----------
+x <- 44 # band number
+# midband frequency
+(freq_m <- (G**((x-30)/3)*1000))
+# calculate bandedge frequencies
+lower_freq_25kHz <- G**(-1/6)*freq_m # lower
+upper_freq_25kHz <- G**(1/6)*freq_m # upper
+
+# 40 kHz TOL band ----------
+x <- 46 # band number
+# midband frequency
+(freq_m <- (G**((x-30)/3)*1000))
+# calculate bandedge frequencies
+lower_freq_40kHz <- G**(-1/6)*freq_m # lower
+upper_freq_40kHz <- G**(1/6)*freq_m # upper
+```
+
 Create function to extract TOL band SPL and take mean from average spectra
 
-```{r avgSpec TOL band function}
+```{r avgSpec SPL calculations function}
 ## option to apply a highpass filter but here I do not apply one
 ## calculates avg spectrum then extracts SPL within frequency bands and calculates difference
 
@@ -62,19 +81,30 @@ avgSpec_band_diff <- function(Acoustic_Study, evNum, clipping_level, filterfrom_
   ## extract spectral data for specified TOL band
   ## 173 is our system clipping level for SoundTraps
   ## 206 is the clipping level for the Reson hydrophones
-  band_15to17kHz_dB <- (avgSpec[which(freq>15000 & freq<17000)]+clipping_level) # 15-17 kHz TOL
-  band_22to24kHz_dB <- (avgSpec[which(freq>22000 & freq<24000)]+clipping_level) # 22-24 kHz TOL
-  band_45to47kHz_dB <- (avgSpec[which(freq>45000 & freq<47000)]+clipping_level) # 45-47 kHz TOL
+  band_15to17kHz_dB <- (avgSpec[which(freq>15000 & freq<17000)]+clipping_level) # 15-17 kHz band
+  band_22to24kHz_dB <- (avgSpec[which(freq>22000 & freq<24000)]+clipping_level) # 22-24 kHz band
+  band_45to47kHz_dB <- (avgSpec[which(freq>45000 & freq<47000)]+clipping_level) # 45-47 kHz band
+  
+  band_16kHz_dB <- (avgSpec[which(freq>lower_freq_16kHz & freq<upper_freq_16kHz)]+clipping_level) # 16 kHz TOL
+  band_25kHz_dB <- (avgSpec[which(freq>lower_freq_25kHz & freq<upper_freq_25kHz)]+clipping_level) # 25 kHz TOL
+  band_40kHz_dB <- (avgSpec[which(freq>lower_freq_40kHz & freq<upper_freq_40kHz)]+clipping_level) # 40 kHz TOL
   
   ## because dB is on a log scale, we must convert to linear scale and then take the mean
   ## after taking the mean, we can convert back to log scale
-  band_15to17kHz_mean_dB <- 20*log10(mean(10^(band_15to17kHz_dB/20))) # 15-17 kHz TOL
-  band_22to24kHz_mean_dB <- 20*log10(mean(10^(band_22to24kHz_dB/20))) # 22-24 kHz TOL
-  band_45to47kHz_mean_dB <- 20*log10(mean(10^(band_45to47kHz_dB/20))) # 45-47 kHz TOL
+  band_15to17kHz_mean_dB <- 20*log10(mean(10^(band_15to17kHz_dB/20))) # 15-17 kHz band
+  band_22to24kHz_mean_dB <- 20*log10(mean(10^(band_22to24kHz_dB/20))) # 22-24 kHz band
+  band_45to47kHz_mean_dB <- 20*log10(mean(10^(band_45to47kHz_dB/20))) # 45-47 kHz band
   
-  ## calculate difference between freq bands and convert back to dB
+  band_16kHz_mean_dB <- 20*log10(mean(10^(band_16kHz_dB/20))) # 16 kHz TOL
+  band_25kHz_mean_dB <- 20*log10(mean(10^(band_25kHz_dB/20))) # 25 kHz TOL
+  band_40kHz_mean_dB <- 20*log10(mean(10^(band_40kHz_dB/20))) # 40 kHz TOL
+  
+  ## calculate difference between freq bands
   spl_diff_16to23_dB <- band_22to24kHz_mean_dB - band_15to17kHz_mean_dB
   spl_diff_23to46_dB <- band_45to47kHz_mean_dB - band_22to24kHz_mean_dB
+  
+  spl_diff_16to25_TOL_dB <- band_25kHz_mean_dB - band_16kHz_mean_dB
+  spl_diff_25to40_TOL_dB <- band_40kHz_mean_dB - band_25kHz_mean_dB
   
   ## calculate how many unique clicks are in the dataset
   n_clicks <- nClicks(Acoustic_Study@events[[evNum]], distinct=TRUE) 
@@ -90,6 +120,8 @@ avgSpec_band_diff <- function(Acoustic_Study, evNum, clipping_level, filterfrom_
                             species=species_id,
                             spl_diff_16to23_dB=spl_diff_16to23_dB, 
                             spl_diff_23to46_dB=spl_diff_23to46_dB,
+                            spl_diff_16to25_TOL_dB=spl_diff_16to25_TOL_dB, 
+                            spl_diff_25to40_TOL_dB=spl_diff_25to40_TOL_dB,
                             n_dets=n_clicks)
   
   ## join both dataframes
@@ -105,8 +137,10 @@ avgSpec_band_diff <- function(Acoustic_Study, evNum, clipping_level, filterfrom_
 
 calculate_SPL_diff <- function(Acoustic_Study, clipping_level, filterfrom_khz) {
   # create empty data frame to fill
-  band_diff_df <- data.frame(eventId=c(),species=c(),spl_diff_16to23_dB=c(),
-                             spl_diff_23to46_dB=c(),n_dets=c())
+  band_diff_df <- data.frame(eventId=c(),species=c(),
+                             spl_diff_16to23_dB=c(),spl_diff_23to46_dB=c(),
+                             spl_diff_16to25_TOL_dB=c(),spl_diff_25to40_TOL_dB=c(),
+                             n_dets=c())
   
   for (i in 1:length(Acoustic_Study@events)) {
     # run function to calculate SPL differences
@@ -122,66 +156,26 @@ calculate_SPL_diff <- function(Acoustic_Study, clipping_level, filterfrom_khz) {
 
 ```{r run functions for model input}
 ## 2013 training data ---------------------------
-training_data_spl_df <- calculate_SPL_diff(monodontid_2013_data, clipping_level=206, filterfrom_khz=10)
+training_data_spl_df <- calculate_SPL_diff(monodontid_2013_data, clipping_level=206, filterfrom_khz=0)
 ## save output
-write.csv(training_data_spl_df, here('R/spreadsheets/SPL_difference/model_input/training_data_spl_diff.csv'))
+write.csv(training_data_spl_df, 
+          here('R/spreadsheets/SPL_difference/model_input/training_data_spl_diff.csv'),
+          row.names = FALSE)
 
 ## testing data ---------------------------
 ## Fisher Islands
 testing_fish_data_spl_df <- calculate_SPL_diff(fish_dets_0kHzPP_filter, clipping_level=173, filterfrom_khz=0)
 ## save output
-write.csv(testing_fish_data_spl_df, here('R/spreadsheets/SPL_difference/model_input/testing_fish_data_spl_diff_0kHz_highpass.csv'))
+write.csv(testing_fish_data_spl_df, 
+          here('R/spreadsheets/SPL_difference/model_input/testing_fish_data_spl_diff_0kHz_highpass.csv'),
+          row.names = FALSE)
 
 ## Kong Oscar
 testing_kong_data_spl_df <- calculate_SPL_diff(kong_dets_0kHzPP_filter, clipping_level=173, filterfrom_khz=0)
 ## save output
-write.csv(testing_kong_data_spl_df, here('R/spreadsheets/SPL_difference/model_input/testing_kong_data_spl_diff_0kHz_highpass.csv'))
+write.csv(testing_kong_data_spl_df, 
+          here('R/spreadsheets/SPL_difference/model_input/testing_kong_data_spl_diff_0kHz_highpass.csv'),
+          row.names = FALSE)
 
 ```
-
-
-```{r run functions for AcousticStudy object}
-## full datasets
-## load Fisher data
-load(here("R/Rdata/1hr/Fish_20kHzPG_0kHzPP_1hr_wavTime_filtered_labeled.rdata"))
-## load Kong Oscar data
-load(here("R/Rdata/1hr/Kong_20kHzPG_0kHzPP_1hr_wavTime_filtered_labeled.rdata"))
-## load training 2013 data
-load(here('R/Rdata/Monodontid_2013_data_ch1.rdata'))
-
-## Fisher --------------------------------------
-## add a column for species to each spreadsheet
-fish_dets_filter_data <- getClickData(fish_dets_0kHzPP_filter)
-fish_species_data <- fish_dets_filter_data %>% select(c(eventId,species)) %>% group_by(eventId) %>% summarise(species=first(species))
-## read in dataset
-testing_fish_data_spl_df <- read.csv(here('R/spreadsheets/SPL_difference/model_input/testing_fish_data_spl_diff_20kHz_highpass.csv'))
-testing_fish_data_spl <- rename(testing_fish_data_spl_df, eventId=evNum) %>% mutate_all(as.character)
-testing_fish_spl_df <- left_join(fish_species_data, testing_fish_data_spl, by='eventId')
-## save output
-write.csv(testing_fish_spl_df, here('R/spreadsheets/SPL_difference/model_input/testing_fish_data_spl_diff_20kHz_highpass_with-species.csv'))
-
-## Kong Oscar --------------------------------------
-## add a column for species to each spreadsheet
-kong_dets_filter_data <- getClickData(kong_dets_0kHzPP_filter)
-kong_species_data <- kong_dets_filter_data %>% select(c(eventId,species)) %>% group_by(eventId) %>% summarise(species=first(species))
-## read in dataset
-testing_kong_data_spl_df <- read.csv(here('R/spreadsheets/SPL_difference/model_input/testing_kong_data_spl_diff_20kHz_highpass.csv'))
-testing_kong_data_spl <- rename(testing_kong_data_spl_df, eventId=evNum) %>% mutate_all(as.character)
-testing_kong_spl_df <- left_join(kong_species_data, testing_kong_data_spl, by='eventId')
-## save output
-write.csv(testing_kong_spl_df, here('R/spreadsheets/SPL_difference/model_input/testing_kong_data_spl_diff_20kHz_highpass_with-species.csv'))
-
-## 2013 training data --------------------------------------
-## add a column for species to each spreadsheet
-train_dets_data <- getClickData(Monodontid_2013_data_ch1)
-train_species_data <- train_dets_data %>% select(c(eventId,species)) %>% group_by(eventId) %>% summarise(species=first(species))
-## read in dataset
-train_data_spl_df <- read.csv(here('R/spreadsheets/SPL_difference/model_input/training_data_spl_diff_10kHz_highpass.csv'))
-train_data_spl <- rename(train_data_spl_df, eventId=evNum) %>% mutate_all(as.character)
-train_spl_df <- left_join(train_species_data, train_data_spl, by='eventId')
-## save output
-write.csv(train_spl_df, here('R/spreadsheets/SPL_difference/model_input/training_data_spl_diff_10kHz_highpass_with-species.csv'))
-
-```
-
 
