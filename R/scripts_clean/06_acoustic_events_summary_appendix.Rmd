@@ -1,0 +1,329 @@
+---
+title: "Appendix A"
+subtitle: "Acoustic Event Data Summary"
+author: "M. J. Zahn"
+date: "`r format(Sys.time(), '%B %d, %Y')`"
+output: 
+  pdf_document:
+    toc: true
+    toc_depth: 2
+geometry:
+- top=0.75in
+- bottom=0.75in
+- left=0.5in
+- right=0.5in
+---
+
+\vspace{0.5in}
+***
+\vspace{0.5in}
+
+**Summary**
+
+This appendix provides an overview of the data included in all acoustic events (1 hour resolution) from the Kong Oscar and Fisher Islands moorings. Events that had fewer than 30 detections contained false positive detections (i.e., noise) and thus were removed.
+
+A summary table is provided for each category showing the number of detections for each acoustic event and the sound pressure level (SPL) difference (in dB) between selected frequency bands.
+
+There are two figures for each event:
+
+- Title: Acoustic event number that provides a unique numeric ID for each 6-hour acoustic event.
+- Left: Concatenated click spectrogram where darker orange colors represent higher energy content.
+- Right: Mean power spectrum for all detections within the event.
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+```{r load packages, results = FALSE, include=FALSE}
+## load required packages
+library(here)
+library(ggplot2)
+library(PAMpal)
+library(dplyr)
+```
+
+```{r load data, results = FALSE, include=FALSE}
+## load Fisher data
+# load(here("R/final_test/Rdata/Fisher19_20kHzPG_15kHzPP_6hourly.rdata"))
+# load(here("R/Rdata/Fish_20kHzPG_20kHzPP_6hr_wavTime.rdata"))
+load(here('R/Rdata/1hr/Fish_20kHzPG_0kHzPP_1hr_wavTime_unfiltered_labeled.rdata'))
+
+## load Kong Oscar data
+# load(here("R/Rdata/Kong_20kHzPG_20kHzPP_6hr_wavTime.rdata"))
+load(here('R/Rdata/1hr/Kong_20kHzPG_0kHzPP_1hr_wavTime_unfiltered_labeled.rdata'))
+
+```
+
+```{r update Binaries location on path, results = FALSE, include=FALSE}
+## if running on Desktop computer, update location of Binaries
+# fish_dets_20kHzPP<- updateFiles(fish_dets_20kHzPP, bin = here('../Fisher/Binaries'), db = here('../Fisher/PAM20209_Zahn_narluga_fisher.sqlite3'))
+# 
+# kong_dets_20kHzPP <- updateFiles(kong_dets_20kHzPP, bin = here('../Kong_Oscar/Binaries'), db = here('../Kong_Oscar/PAM20209_Zahn_narluga_kong.sqlite3'))
+```
+
+
+```{r function to filter out noise events, results = FALSE, include=FALSE}
+filter_noise_acoustic_study <- function(Acoustic_Study){
+  ## remove events that have no detections or very few (< 30 detections)
+  events_list <- Acoustic_Study@events
+  
+  for (i in 1:length(events_list)) {
+    # start counter at zero
+    n_clicks <- 0
+    
+    # loop through detectors and get total number of clicks for each event
+    for (j in 1:length(events_list[[i]]@detectors)) {
+      if (length(events_list[[i]]@detectors) == 0) {
+        n_clicks <- 0
+      }
+      if (length(events_list[[i]]@detectors) == 1) {
+        n_clicks <- length(events_list[[i]]@detectors[[j]]$UID)
+      }
+      else if (length(events_list[[i]]@detectors) > 1){
+        n_clicks_det <- length(events_list[[i]]@detectors[[j]]$UID)
+        n_clicks <- n_clicks + n_clicks_det
+      }
+    }
+    if (n_clicks<=30) {
+      print(paste0("dropped event #", events_list[[i]]@id))
+      Acoustic_Study@events[[events_list[[i]]@id]] <- NULL
+    }
+  }
+  return(Acoustic_Study)
+}
+
+```
+
+```{r function for plots, results = FALSE, include=FALSE}
+## function to plot concatenated click spectrogram and mean power spectrum for each acoustic event
+spec_calc_and_plot <- function(Acoustic_Study) {
+  # make copy of Acoustic_Study object because we will modify it
+  Acoustic_Study_thinned <- Acoustic_Study
+  
+  # create empty data frame to fill
+  species_spec_df <- data.frame(evNum=c(),band_diff_17to23_dB=c(),
+                                band_diff_23to42_dB=c(),n_dets=c(),n_dets_thinned=c())
+  
+  for (i in 1:length(Acoustic_Study_thinned@events)) {
+    ## if the event has more than 1,000 clicks and under 10,000, thin the data by 10
+    ## (i.e., take every 10th observation)
+    if (nClicks(Acoustic_Study_thinned@events[[i]])>1000 & nClicks(Acoustic_Study_thinned@events[[i]])<=10000) {
+      Acoustic_Study_thinned@events[[i]] <- Acoustic_Study_thinned@events[[i]] %>% 
+        dplyr::filter(row_number(UID) %% 10 == 0)
+    }
+    ## take eveyr 100th click if event has >10,000 clicks
+    if (nClicks(Acoustic_Study_thinned@events[[i]])>10000) {
+      Acoustic_Study_thinned@events[[i]] <- Acoustic_Study_thinned@events[[i]] %>% 
+        dplyr::filter(row_number(UID) %% 100 == 0)
+    }
+
+    ## then plot
+    avSpec_all <- calculateAverageSpectra(Acoustic_Study_thinned,wl=512,evNum=Acoustic_Study_thinned@events[[i]]@id,
+                                          sort=FALSE,noise=TRUE,filterfrom_khz=0,
+                                          title=paste0("Event #", Acoustic_Study_thinned@events[[i]]@id),norm=FALSE)
+    
+    ## extract frequency values and mean spectra
+    freq <- avSpec_all$freq
+    avgSpec <- avSpec_all$avgSpec
+  
+    ## extract spectral data for specified TOL band
+    ## 173 is our system clipping level
+    band_15to17kHz_dB <- (avgSpec[which(freq>15000 & freq<17000)]+173) # 15-17 kHz TOL
+    band_22to24kHz_dB <- (avgSpec[which(freq>22000 & freq<24000)]+173) # 22-24 kHz TOL
+    band_45to47kHz_dB <- (avgSpec[which(freq>45000 & freq<47000)]+173) # 45-47 kHz TOL
+  
+    ## because dB is on a log scale, we must convert to linear scale and then take the mean
+    ## after taking the mean, we can convert back to log scale
+    band_15to17kHz_mean_dB <- 20*log10(mean(10^(band_15to17kHz_dB/20))) # 15-17 kHz TOL
+    band_22to24kHz_mean_dB <- 20*log10(mean(10^(band_22to24kHz_dB/20))) # 22-24 kHz TOL
+    band_45to47kHz_mean_dB <- 20*log10(mean(10^(band_45to47kHz_dB/20))) # 45-47 kHz TOL
+  
+    ## calculate difference between freq bands and convert back to dB
+    band_diff_16to23_dB <- band_22to24kHz_mean_dB - band_15to17kHz_mean_dB
+    band_diff_23to46_dB <- band_45to47kHz_mean_dB - band_22to24kHz_mean_dB
+  
+    ## calculate how many unique clicks are in the dataset
+    n_clicks <- nClicks(Acoustic_Study@events[[Acoustic_Study@events[[i]]@id]], distinct=TRUE) 
+    n_clicks_thin <- nClicks(Acoustic_Study_thinned@events[[Acoustic_Study_thinned@events[[i]]@id]], distinct=TRUE) 
+  
+    ## save mean spectrum
+    df_avgSpec <- data.frame(t(avgSpec))
+    
+    ## build dataframe with SPL difference and click number data
+    df_SPL_diff <- data.frame(evNum=Acoustic_Study_thinned@events[[i]]@id,
+                              band_diff_16to23_dB=band_diff_16to23_dB, 
+                              band_diff_23to46_dB=band_diff_23to46_dB,
+                              n_dets=n_clicks,
+                              n_dets_thinned=n_clicks_thin)
+  
+    ## join both dataframes
+    event_spec_df <- cbind(df_SPL_diff, df_avgSpec)
+    
+    # append dataframe
+    species_spec_df <- rbind(species_spec_df, event_spec_df)
+  }
+  return(species_spec_df)
+}
+
+```
+
+```{r function to make a summary table of detections}
+print_summary_table <- function(species_spec_df) {
+  ## select columns we want in final table
+  species_spec_df_select <- species_spec_df %>% select(evNum:n_dets_thinned)
+  ## round numbers to two decimal places
+  species_spec_df_select <- species_spec_df_select %>% mutate_if(is.double, round, 2)
+  ## build table
+  knitr::kable(species_spec_df_select, row.names=TRUE, align = c('l','r','r','r','r'),
+               col.names = c("Event #", 
+                             "15-17 kHz and 22-24 kHz SPL difference (dB)",
+                             "22-24 kHz and 45-47 kHz SPL difference (dB)",
+                             "# detections",
+                             "# thinned detections"),
+               caption = "Summary of the number of detections in each acoustic event and the mean sound pressure level (SPL) difference (dB) between the 15-17, 22-24, and 45-47 kHz frequency bands. Number of thinned detections provides the number of detections used in the SPL difference calulcations for large acoustic events (i.e., >1,000 detections).")
+}
+
+```
+
+
+```{r run filtering function, results = FALSE, include=FALSE}
+## remove events with little to no clicks in event
+# Fish_filtered <- filter_noise_acoustic_study(Fisher19_dets_20kHzPG_15kHzPP)
+Fish_filtered <- filter_noise_acoustic_study(fish_dets_0kHzPP)
+Kong_filtered <- filter_noise_acoustic_study(kong_dets_0kHzPP)
+```
+
+# Fisher Islands
+
+## Fisher Islands beluga acoustic events
+
+```{r plot fisher beluga, fig.height=3.5, fig.width=9}
+## filter data for beluga events
+fish_beluga_dets <- Fish_filtered %>% dplyr::filter(species=='X045')
+
+## configure settings to plot mean spectrum and spectrogram side by side
+par(mfrow=c(1,2))
+
+## plot concatenated click spectrogram and mean power spectra
+fish_beluga_spec_df <- spec_calc_and_plot(fish_beluga_dets)
+
+## save dataframe as csv
+# write.csv(fish_beluga_spec_df, here('R/spreadsheets/SPL_difference/fish_beluga_spectral_data_1hr.csv'))
+
+## print summary table
+print_summary_table(fish_beluga_spec_df)
+
+```
+
+\vspace{0.5in}
+
+## Fisher Islands narwhal acoustic events
+
+```{r plot fisher narwhal, fig.height=3.5, fig.width=9}
+## filter data for narwhal events
+fish_narwhal_dets <- Fish_filtered %>% dplyr::filter(species=='X085')
+
+## configure settings to plot mean spectrum and spectrogram side by side
+par(mfrow=c(1,2))
+
+## plot concatenated click spectrogram and mean power spectra
+fish_narwhal_spec_df <- spec_calc_and_plot(fish_narwhal_dets)
+
+## save dataframe as csv
+# write.csv(fish_narwhal_spec_df, here('R/spreadsheets/SPL_difference/fish_narwhal_spectral_data_1hr.csv'))
+
+## print summary table
+print_summary_table(fish_narwhal_spec_df)
+
+```
+
+\vspace{0.5in}
+
+## Fisher Islands noise acoustic events
+
+```{r plot fisher noise, fig.height=3.5, fig.width=9}
+## filter data for noise events
+fish_noise_dets <- Fish_filtered %>% dplyr::filter(species=='NOISE')
+
+## configure settings to plot mean spectrum and spectrogram side by side
+par(mfrow=c(1,2))
+
+## plot concatenated click spectrogram and mean power spectra
+fish_noise_spec_df <- spec_calc_and_plot(fish_noise_dets)
+
+## save dataframe as csv
+# write.csv(fish_noise_spec_df, here('R/spreadsheets/SPL_difference/fish_noise_spectral_data_1hr.csv'))
+
+## print summary table
+print_summary_table(fish_noise_spec_df)
+
+```
+
+\vspace{0.5in}
+
+
+# Kong Oscar
+
+## Kong Oscar beluga acoustic events
+
+```{r plot kong beluga, fig.height=3.5, fig.width=9}
+## filter data for beluga events
+kong_beluga_dets <- Kong_filtered %>% dplyr::filter(species=='X045')
+
+## configure settings to plot mean spectrum and spectrogram side by side
+par(mfrow=c(1,2))
+
+## plot concatenated click spectrogram and mean power spectra
+kong_beluga_spec_df <- spec_calc_and_plot(kong_beluga_dets)
+
+## save dataframe as csv
+# write.csv(kong_beluga_spec_df, here('R/spreadsheets/SPL_difference/kong_beluga_spectral_data_1hr.csv'))
+
+## print summary table
+print_summary_table(kong_beluga_spec_df)
+
+```
+
+\vspace{0.5in}
+
+## Kong Oscar narwhal acoustic events
+
+```{r plot kong narwhal, fig.height=3.5, fig.width=9}
+## filter data for narwhal events
+kong_narwhal_dets <- Kong_filtered %>% dplyr::filter(species=='X085')
+
+## configure settings to plot mean spectrum and spectrogram side by side
+par(mfrow=c(1,2))
+
+## plot concatenated click spectrogram and mean power spectra
+kong_narwhal_spec_df <- spec_calc_and_plot(kong_narwhal_dets)
+
+## save dataframe as csv
+# write.csv(kong_narwhal_spec_df, here('R/spreadsheets/SPL_difference/kong_narwhal_spectral_data_1hr.csv'))
+
+## print summary table
+print_summary_table(kong_narwhal_spec_df)
+
+```
+
+\vspace{0.5in}
+
+## Kong Oscar noise acoustic events
+
+```{r plot kong noise, fig.height=3.5, fig.width=9}
+## filter data for noise events
+kong_noise_dets <- Kong_filtered %>% dplyr::filter(species=='NOISE')
+
+## configure settings to plot mean spectrum and spectrogram side by side
+par(mfrow=c(1,2))
+
+## plot concatenated click spectrogram and mean power spectra
+kong_noise_spec_df <- spec_calc_and_plot(kong_noise_dets)
+
+## save dataframe as csv
+# write.csv(kong_noise_spec_df, here('R/spreadsheets/SPL_difference/kong_noise_spectral_data_1hr.csv'))
+
+## print summary table
+print_summary_table(kong_noise_spec_df)
+
+```
