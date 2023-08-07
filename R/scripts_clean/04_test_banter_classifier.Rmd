@@ -31,24 +31,6 @@ Sys.setenv(TZ = 'UTC')
 
 ```
 
-```{r load data}
-## model without noise category and with SPL variables
-load(file=here('R/Rdata/train_bant_mdl.rdata'))
-load(file=here('R/Rdata/train_bant_mdl_tol.rdata'))
-
-## load testing data
-## these data were processed in PAMpal with 20 kHz highpass filter (and SPL calcs) and events that had few detections were removed
-load(here("R/Rdata/test_data_fish.rdata"))
-load(here("R/Rdata/test_data_kong.rdata"))
-
-## load testing data that includes SPL diff calculated with 0 kHz highpass filter
-load(here("R/Rdata/test_data_fish_0kHz-spl.Rdata"))
-load(here("R/Rdata/test_data_fish_0kHz-spl_tol.Rdata"))
-load(here("R/Rdata/test_data_kong_0kHz-spl.Rdata"))
-load(here("R/Rdata/test_data_kong_0kHz-spl_tol.Rdata"))
-
-```
-
 ```{r look at training model with spl diff}
 ## look at training model with SPL diff
 summary(bant.mdl)
@@ -74,9 +56,9 @@ calculateAverageSpectra(train_data,evNum = 'PAM20103_Zahn_narluga-ECdetection.OE
 
 ```{r modified code from rfPermute confusionMatrix func}
 # function to calculate prediction interval from output of predict() function
-confusionMatrix_predict <- function(predict_output, SPL_diff_df) {
+confusionMatrix_predict <- function(predict_output) {
   ## make confusion matrix
-  cm <- table(SPL_diff_df[,1], predict_output)
+  cm <- predict_output$validation.matrix
   
   # binomial test
   conf.level = 0.95
@@ -128,6 +110,16 @@ confusionMatrix_predict <- function(predict_output, SPL_diff_df) {
 
 ## Test banter model with SoundTrap data - without SPL vars
 
+```{r load data without spl}
+## model with and without SPL variables
+load(file=here('R/Rdata/train_bant_mdl.rdata'))
+
+## load testing data
+## these data were processed in PAMpal with 20 kHz highpass filter and events that had few detections were removed
+load(here("R/Rdata/test_data_fish.rdata"))
+load(here("R/Rdata/test_data_kong.rdata"))
+```
+
 ```{r test whale model without SPL vars}
 ## remove noise events
 fish_whale_data <- fish_test_data %>% filter(species!='NOISE')
@@ -148,17 +140,12 @@ banter_fish$detectors$Click_Detector_3<-filter(banter_fish$detectors$Click_Detec
 banter_kong$detectors$Click_Detector_2<-filter(banter_kong$detectors$Click_Detector_2, peak>20 & peak<50)
 banter_kong$detectors$Click_Detector_3<-filter(banter_kong$detectors$Click_Detector_3, peak>50 & peak<70)
 
-# predict species with novel data
-# score_Fisher <- predict(bant.mdl_new, banter_Fisher)
-score_fish_whale <- predict(bant.mdl_new, banter_fish)
-score_fish_whale
+# predict species with new data
+score_fish_whale <- predict(bant.mdl, banter_fish)
+confusionMatrix_predict(score_fish_whale)
 
-# save model result
-save(score_fish_whale, file=here("R/Rdata/model_results/score_fish_whale.rdata"))
-
-# score_kong <- predict(bant.mdl_new, banter_kong)
-score_kong_whale <- predict(bant.mdl_new, banter_kong)
-score_kong_whale
+score_kong_whale <- predict(bant.mdl, banter_kong)
+confusionMatrix_predict(score_kong_whale)
 
 ## look at beluga predictions
 score_fish_whale$predict.df[score_fish_whale$predict.df$original == "X045",]
@@ -169,8 +156,6 @@ score_fish_whale$predict.df[score_fish_whale$predict.df$original == "X085",]
 score_kong_whale$predict.df[score_kong_whale$predict.df$original == "X085",]
 
 ```
-
-## Save model output and scores
 
 ```{r save classification scores}
 save(score_fish_whale,file=here('R/Rdata/score_fish_whale.rdata'))
@@ -182,6 +167,16 @@ write.csv(score_fish_whale$predict.df, here('R/Fish_scores_whale.csv'))
 
 ## Test banter model with SoundTrap data - with SPL vars calculated with specific frequency bands
 
+```{r load data}
+## load banter model with SPL variables from specific freq bands
+load(file=here('R/Rdata/train_bant_mdl_spl.rdata'))
+
+## load testing data that includes SPL diff calculated with 0 kHz highpass filter
+load(here("R/Rdata/test_data_fish_0kHz-spl.Rdata"))
+load(here("R/Rdata/test_data_kong_0kHz-spl.Rdata"))
+
+```
+
 ```{r test whale model with SPL vars}
 ## remove noise events
 fish_whale_data <- fish_test_data %>% filter(species!='NOISE')
@@ -204,36 +199,30 @@ banter_kong_spl$detectors$Click_Detector_3<-filter(banter_kong_spl$detectors$Cli
 
 # predict species with novel data
 # score_Fisher <- predict(bant.mdl_new, banter_Fisher)
-score_fish_whale_spl <- predict(bant.mdl, banter_fish_spl)
+score_fish_whale_spl <- predict(bant.mdl_spl, banter_fish_spl)
+confusionMatrix_predict(score_fish_whale_spl)
 
-# save model result
-save(score_fish_whale, file=here("R/Rdata/model_results/score_fish_whale.rdata"))
-
-# score_kong <- predict(bant.mdl_new, banter_kong)
-score_kong_whale_spl <- predict(bant.mdl, banter_kong_spl)
-score_kong_whale_spl
-
-## look at beluga predictions
-score_fish_whale$predict.df[score_fish_whale$predict.df$original == "X045",]
-score_kong_whale$predict.df[score_kong_whale$predict.df$original == "X045",]
-
-## look at narwhal predictions
-score_fish_whale$predict.df[score_fish_whale$predict.df$original == "X085",]
-score_kong_whale$predict.df[score_kong_whale$predict.df$original == "X085",]
-
-## look at noise predictions
-score_fish_whale$predict.df[score_fish_whale$predict.df$original == "NOISE",]
-score_kong_whale$predict.df[score_kong_whale$predict.df$original == "NOISE",]
-
+score_kong_whale_spl <- predict(bant.mdl_spl, banter_kong_spl)
+confusionMatrix_predict(score_kong_whale_spl)
 ```
 
 
 ## Test banter model with SoundTrap data - with SPL vars calculated with TOL bands
 
+```{r load data}
+## load banter model with SPL variables from TOL bands
+load(file=here('R/Rdata/train_bant_mdl_spl_tol.rdata'))
+
+## load testing data that includes SPL diff calculated with 0 kHz highpass filter
+load(here("R/Rdata/test_data_fish_0kHz-spl_tol.Rdata"))
+load(here("R/Rdata/test_data_kong_0kHz-spl_tol.Rdata"))
+
+```
+
 ```{r test whale model with SPL vars}
 ## remove noise events
-fish_whale_data <- fish_test_data %>% filter(species!='NOISE')
-kong_whale_data <- kong_test_data %>% filter(species!='NOISE')
+fish_whale_data <- fish_test_data_tol %>% filter(species!='NOISE')
+kong_whale_data <- kong_test_data_tol %>% filter(species!='NOISE')
 
 ## Export data from AcousticStudy into format required to run a BANTER model
 ## Fisher islands
@@ -250,35 +239,14 @@ banter_fish_spl$detectors$Click_Detector_3<-filter(banter_fish_spl$detectors$Cli
 banter_kong_spl$detectors$Click_Detector_2<-filter(banter_kong_spl$detectors$Click_Detector_2, peak>20 & peak<50)
 banter_kong_spl$detectors$Click_Detector_3<-filter(banter_kong_spl$detectors$Click_Detector_3, peak>50 & peak<70)
 
-# predict species with novel data
-# score_Fisher <- predict(bant.mdl_new, banter_Fisher)
-score_fish_whale_spl <- predict(bant.mdl, banter_fish_spl)
-score_fish_whale_spl
+# predict species with new data
+score_fish_whale_spl_tol <- predict(bant.mdl_spl_tol, banter_fish_spl)
+confusionMatrix_predict(score_fish_whale_spl_tol)
 
-# save model result
-save(score_fish_whale, file=here("R/Rdata/model_results/score_fish_whale.rdata"))
-
-# score_kong <- predict(bant.mdl_new, banter_kong)
-score_kong_whale_spl <- predict(bant.mdl, banter_kong_spl)
-score_kong_whale_spl
-
-## look at beluga predictions
-score_fish_whale_spl$predict.df[score_fish_whale_spl$predict.df$original == "X045",]
-score_kong_whale_spl$predict.df[score_kong_whale_spl$predict.df$original == "X045",]
-
-## look at narwhal predictions
-score_fish_whale$predict.df[score_fish_whale$predict.df$original == "X085",]
-score_kong_whale$predict.df[score_kong_whale$predict.df$original == "X085",]
-
-## look at noise predictions
-score_fish_whale$predict.df[score_fish_whale$predict.df$original == "NOISE",]
-score_kong_whale$predict.df[score_kong_whale$predict.df$original == "NOISE",]
+score_kong_whale_spl_tol <- predict(bant.mdl_spl_tol, banter_kong_spl)
+confusionMatrix_predict(score_kong_whale_spl_tol)
 
 ```
-
-
-
-## Save model output and scores
 
 ```{r save classification scores}
 save(score_fish_whale,file=here('R/Rdata/score_fish_whale.rdata'))
