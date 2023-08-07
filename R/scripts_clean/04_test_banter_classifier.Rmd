@@ -34,6 +34,7 @@ Sys.setenv(TZ = 'UTC')
 ```{r load data}
 ## model without noise category and with SPL variables
 load(file=here('R/Rdata/train_bant_mdl.rdata'))
+load(file=here('R/Rdata/train_bant_mdl_tol.rdata'))
 ## model without noise category and without SPL variables
 load(file=here('R/Rdata/bant_mdl_new.rdata'))
 
@@ -44,7 +45,9 @@ load(here("R/Rdata/test_data_kong.rdata"))
 
 ## load testing data that includes SPL diff calculated with 0 kHz highpass filter
 load(here("R/Rdata/test_data_fish_0kHz-spl.Rdata"))
+load(here("R/Rdata/test_data_fish_0kHz-spl_tol.Rdata"))
 load(here("R/Rdata/test_data_kong_0kHz-spl.Rdata"))
+load(here("R/Rdata/test_data_kong_0kHz-spl_tol.Rdata"))
 
 ```
 
@@ -69,36 +72,6 @@ calculateAverageSpectra(train_data,evNum = 'PAM20103_Zahn_narluga-ECdetection.OE
 calculateAverageSpectra(train_data,evNum = 'PAM20103_Zahn_narluga-ECdetection.OE84') # misclassified
 calculateAverageSpectra(train_data,evNum = 'PAM20103_Zahn_narluga-ECdetection.OE85') # beluga
 calculateAverageSpectra(train_data,evNum = 'PAM20103_Zahn_narluga-ECdetection.OE86') # beluga
-```
-
-
-```{r thin data}
-## because the Fisher dataset is so large, we need to thin the dataset in order to process it without reaching computer memory limits
-for (i in 1:length(fish_dets_20kHzPP_filter@events)) {
-  if (nClicks(fish_dets_20kHzPP_filter@events[[i]])>1000 & nClicks(fish_dets_20kHzPP_filter@events[[i]])<=10000) {
-    fish_dets_20kHzPP_filter@events[[i]] <- fish_dets_20kHzPP_filter@events[[i]] %>% 
-      dplyr::filter(row_number(UID) %% 10 == 0)
-  }
-  ## take eveyr 100th click if event has >10,000 clicks
-  if (nClicks(fish_dets_20kHzPP_filter@events[[i]])>10000) {
-    fish_dets_20kHzPP_filter@events[[i]] <- fish_dets_20kHzPP_filter@events[[i]] %>% 
-      dplyr::filter(row_number(UID) %% 100 == 0)
-  }
-}
-## this decreased the AcousticStudy object by more than half from 1.7 GB to 762 MB
-
-for (i in 1:length(kong_dets_20kHzPP_filter@events)) {
-  if (nClicks(kong_dets_20kHzPP_filter@events[[i]])>1000 & nClicks(kong_dets_20kHzPP_filter@events[[i]])<=10000) {
-    kong_dets_20kHzPP_filter@events[[i]] <- kong_dets_20kHzPP_filter@events[[i]] %>% 
-      dplyr::filter(row_number(UID) %% 10 == 0)
-  }
-  ## take eveyr 100th click if event has >10,000 clicks
-  if (nClicks(kong_dets_20kHzPP_filter@events[[i]])>10000) {
-    kong_dets_20kHzPP_filter@events[[i]] <- kong_dets_20kHzPP_filter@events[[i]] %>% 
-      dplyr::filter(row_number(UID) %% 100 == 0)
-  }
-}
-
 ```
 
 ## Test banter model with SoundTrap data - without SPL vars

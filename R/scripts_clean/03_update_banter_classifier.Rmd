@@ -21,7 +21,7 @@ library(here)
 #Set time zone to UTC
 Sys.setenv(TZ = 'UTC')
 
-## install PAMpal package from GitHub
+# # install PAMpal package from GitHub
 # devtools::install_github('TaikiSan21/PAMpal')
 ## install BANTER package from GitHub
 # devtools::install_github('ericarcher/banter')
@@ -53,16 +53,19 @@ load(here("R/Rdata/Monodontid_2013_data_ch1.rdata"))
 train_spl_df <- read.csv(here('R/spreadsheets/SPL_difference/model_input/training_data_spl_diff.csv'))
 
 train_spl_df_select <- train_spl_df %>% select(c(eventId,spl_diff_16to23_dB,spl_diff_23to46_dB))
+train_spl_df_select_tol <- train_spl_df %>% select(c(eventId,spl_diff_16to25_TOL_dB,spl_diff_25to40_TOL_dB))
 
 # addMeasures function added in PAMpal v0.20.2
 # Only use first 3 columns of splDf because we dont want "n_dets" for modeling
 # Only requirement for "measures" is an "eventId" column matching event names in our data
 train_data <- addMeasures(Monodontid_2013_data_ch1, measures = train_spl_df_select)
+train_data_tol <- addMeasures(Monodontid_2013_data_ch1, measures = train_spl_df_select_tol)
 # this will show what we've added for each event
 getMeasures(train_data)
 
 # save updated AcousticStudy object with SPL diff
 save(train_data, file=here("R/Rdata/train_data.Rdata"))
+save(train_data_tol, file=here("R/Rdata/train_data_tol.Rdata"))
 
 # these will automatically get exported now with export_banter
 # This should tell you that it found 2 event level measures that are exported
@@ -77,46 +80,47 @@ train_banterData$events
 load(here("R/Rdata/1hr/Fish_20kHzPG_20kHzPP_1hr_wavTime_filtered_labeled.rdata"))
 
 # load csvs with SPL data
-fish_spl_20kHz_df <- read.csv(here('R/spreadsheets/SPL_difference/model_input/testing_fish_data_spl_diff_20kHz_highpass.csv'))
-
 fish_spl_0kHz_df <- read.csv(here('R/spreadsheets/SPL_difference/model_input/testing_fish_data_spl_diff_0kHz_highpass.csv'))
 
 fish_spl_0kHz_df_select <- fish_spl_0kHz_df %>% select(c(eventId,spl_diff_16to23_dB,spl_diff_23to46_dB))
+fish_spl_0kHz_df_select_tol <- fish_spl_0kHz_df %>% select(c(eventId,spl_diff_16to25_TOL_dB,spl_diff_25to40_TOL_dB))
 
 # addMeasures function added in PAMpal v0.20.2
 # Only use first 3 columns of splDf because we dont want "n_dets" for modeling
 # Only requirement for "measures" is an "eventId" column matching event names in our data
 fish_test_data <- addMeasures(fish_dets_20kHzPP_filter, measures = fish_spl_0kHz_df_select)
+fish_test_data_tol <- addMeasures(fish_dets_20kHzPP_filter, measures = fish_spl_0kHz_df_select_tol)
+
 # this will show what we've added for each event
 getMeasures(fish_test_data)
 
 # save updated AcousticStudy object with SPL diff
 save(fish_test_data, file=here("R/Rdata/test_data_fish_0kHz-spl.Rdata"))
-
+save(fish_test_data_tol, file=here("R/Rdata/test_data_fish_0kHz-spl_tol.Rdata"))
 ```
-
 
 ```{r add SPL - Kong Oscar data}
 ## load data
 load(here("R/Rdata/1hr/Kong_20kHzPG_20kHzPP_1hr_wavTime_filtered_labeled.rdata"))
 
 # load csvs with SPL data
-kong_spl_20kHz_df <- read.csv(here('R/spreadsheets/SPL_difference/model_input/testing_kong_data_spl_diff_20kHz_highpass.csv'))
-
 kong_spl_0kHz_df <- read.csv(here('R/spreadsheets/SPL_difference/model_input/testing_kong_data_spl_diff_0kHz_highpass.csv'))
 
 kong_spl_0kHz_df_select <- kong_spl_0kHz_df %>% select(c(eventId,spl_diff_16to23_dB,spl_diff_23to46_dB))
+kong_spl_0kHz_df_select_tol <- kong_spl_0kHz_df %>% select(c(eventId,spl_diff_16to25_TOL_dB,spl_diff_25to40_TOL_dB))
 
 # addMeasures function added in PAMpal v0.20.2
 # Only use first 3 columns of splDf because we dont want "n_dets" for modeling
 # Only requirement for "measures" is an "eventId" column matching event names in our data
 kong_test_data <- addMeasures(kong_dets_20kHzPP_filter, measures = kong_spl_0kHz_df_select)
+kong_test_data_tol <- addMeasures(kong_dets_20kHzPP_filter, measures = kong_spl_0kHz_df_select_tol)
+
 # this will show what we've added for each event
 getMeasures(kong_test_data)
 
 # save updated AcousticStudy object with SPL diff
 save(kong_test_data, file=here("R/Rdata/test_data_kong_0kHz-spl.Rdata"))
-
+save(kong_test_data_tol, file=here("R/Rdata/test_data_kong_0kHz-spl_tol.Rdata"))
 ```
 
 Train banter model with 2013 data
@@ -173,6 +177,50 @@ colnames(bant.mdl@model.data)
 
 ## save model
 save(bant.mdl, file=here("R/Rdata/train_bant_mdl.Rdata"))
+
+```
+
+```{r rerun Banter training model - Only Det 2 and 3}
+## export banter model
+load(here("R/Rdata/train_data_tol.Rdata"))
+
+banterAll <- export_banter(train_data_tol,dropVars = c('noiseLevel','dBPP','peakTime'))
+
+## initialize banter model
+bant.mdl <- initBanterModel(banterAll$events)
+
+## look at detector names and order
+names(banterAll$detectors)
+
+## run RF models for each Detector added-------------------------------------
+bant.mdl <- addBanterDetector(
+  bant.mdl, 
+  data = banterAll$detectors[c(2,3)], # includes only Detectors 2 and 3
+  ntree = 10000, 
+  sampsize = 50,
+  importance = TRUE
+)
+## look at summary of Detector models
+## this shows correct classification rate for each species in each detector
+summary(bant.mdl)
+plotDetectorTrace(bant.mdl)
+
+## run Event model------------------------------------------------------------
+bant.mdl_tol <- runBanterModel(bant.mdl, ntree = 10000, sampsize = 9)
+
+## look at summary for Event model
+summary(bant.mdl_tol)
+
+## get RF data from banter model
+event.rf <- getBanterModel(bant.mdl, "event")
+
+## SUMMARIES
+rfPermute::plotVotes(event.rf)
+rfPermute::plotProximity(event.rf)
+rfPermute::casePredictions(event.rf)
+
+## save model
+save(bant.mdl_tol, file=here("R/Rdata/train_bant_mdl_tol.Rdata"))
 
 ```
 
