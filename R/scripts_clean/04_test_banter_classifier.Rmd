@@ -111,19 +111,19 @@ confusionMatrix_predict <- function(predict_output) {
 ## Test banter model with SoundTrap data - without SPL vars
 
 ```{r load data without spl}
-## model with and without SPL variables
+## base model without SPL variables
 load(file=here('R/Rdata/train_bant_mdl.rdata'))
 
 ## load testing data
 ## these data were processed in PAMpal with 20 kHz highpass filter and events that had few detections were removed
-load(here("R/Rdata/test_data_fish.rdata"))
-load(here("R/Rdata/test_data_kong.rdata"))
+load(here("R/Rdata/1hr/Fish_20kHzPG_20kHzPP_1hr_wavTime_filtered_labeled.rdata"))
+load(here("R/Rdata/1hr/Kong_20kHzPG_20kHzPP_1hr_wavTime_filtered_labeled.rdata"))
 ```
 
 ```{r test whale model without SPL vars}
 ## remove noise events
-fish_whale_data <- fish_test_data %>% filter(species!='NOISE')
-kong_whale_data <- kong_test_data %>% filter(species!='NOISE')
+fish_whale_data <- fish_dets_20kHzPP_filter %>% filter(species!='NOISE')
+kong_whale_data <- kong_dets_20kHzPP_filter %>% filter(species!='NOISE')
 
 ## Export data from AcousticStudy into format required to run a BANTER model
 ## Fisher islands
@@ -205,7 +205,6 @@ confusionMatrix_predict(score_fish_whale_spl)
 score_kong_whale_spl <- predict(bant.mdl_spl, banter_kong_spl)
 confusionMatrix_predict(score_kong_whale_spl)
 ```
-
 
 ## Test banter model with SoundTrap data - with SPL vars calculated with TOL bands
 

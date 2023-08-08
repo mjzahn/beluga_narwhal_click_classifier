@@ -26,7 +26,6 @@ Sys.setenv(TZ = 'UTC')
 # devtools::install_github('ericarcher/banter')
 ```
 
-
 ```{r function to filter out noise events, results = FALSE, include=FALSE}
 filter_noise_acoustic_study <- function(Acoustic_Study){
   ## remove events that have no detections or very few (< 30 detections)
@@ -59,7 +58,6 @@ filter_noise_acoustic_study <- function(Acoustic_Study){
 
 ```
 
-
 # Process Fisher and Kong Oscar subsets
 
 These subsets were run in PAMGuard with 4-pole 20 kHz highpass for trigger and 1 kHz pre-filter bandpass.
@@ -68,9 +66,9 @@ These subsets were run in PAMGuard with 4-pole 20 kHz highpass for trigger and 1
 #### Fisher Islands -------------
 myPps <- PAMpalSettings(db = here("../../PAMGuard_ch4/subset_Fisher/v2/PAM20103_Zahn_narluga_Fisher-subset_20kHztrigger.sqlite3"),
                         binaries = here("../../PAMGuard_ch4/subset_Fisher/v2/Binaries"),
-                        sr_hz = 144000, winLen_sec = 0.0025, filterfrom_khz = 15, filterto_khz = NULL)
+                        sr_hz = 144000, winLen_sec = 0.0025, filterfrom_khz = 20, filterto_khz = NULL)
 
-Fisher19_subset_dets_20kHzPG_15kHzPP <- processPgDetections(myPps, mode ='time', 
+Fisher19_subset_dets_20kHzPG_20kHzPP <- processPgDetections(myPps, mode ='time', 
                                               grouping = here('R/final_test/spreadsheets/Fisher_2019_species_ids_6hourly_subset.csv'), 
                                               format = '%m/%d/%Y %H:%M:%OS', id='2019Fisher')
 
@@ -88,7 +86,7 @@ save(Fisher19_subset_dets_20kHzPG_15kHzPP, file='R/final_test/Rdata/Fisher19_sub
 
 myPps <- PAMpalSettings(db = here("../../PAMGuard_ch4/subset_Kong/v3/PAM20103_Zahn_narluga_Kong-subset_20kHztrigger.sqlite3"),
                         binaries = here("../../PAMGuard_ch4/subset_Kong/v3/Binaries"),
-                        sr_hz = 144000, winLen_sec = 0.0025, filterfrom_khz = 15,filterto_khz = NULL)
+                        sr_hz = 144000, winLen_sec = 0.0025, filterfrom_khz = 20,filterto_khz = NULL)
 
 Kong19_subset_dets_20kHzPG_15kHzPP <- processPgDetections(myPps, mode ='time',
                                         grouping = here('R/final_test/spreadsheets/KO_2019_species_ids_6hourly_subset.csv'),
@@ -143,8 +141,6 @@ Kong_dets_20kHzPP <- processPgDetections(myPps, mode ='time',
 ## calculate ICI and add to object
 kong_dets_20kHzPP <- calculateICI(Kong_dets_20kHzPP, time = 'UTC', callType="click")
 
-kong_narwhal <- Kong_dets_20kHzPP %>% filter(species=='X085')
-
 # save file
 save(kong_dets_20kHzPP, file=here('R/Rdata/1hr/Kong_20kHzPG_20kHzPP_1hr_wavTime_unfiltered_labeled.rdata'))
 
@@ -152,7 +148,7 @@ save(kong_dets_20kHzPP, file=here('R/Rdata/1hr/Kong_20kHzPG_20kHzPP_1hr_wavTime_
 kong_dets_20kHzPP_filter <- filter_noise_acoustic_study(kong_dets_20kHzPP)
 
 # save file
-save(kong_dets_0kHzPP_filter, file=here('R/Rdata/1hr/Kong_20kHzPG_20kHzPP_1hr_wavTime_filtered_labeled.rdata'))
+save(kong_dets_20kHzPP_filter, file=here('R/Rdata/1hr/Kong_20kHzPG_20kHzPP_1hr_wavTime_filtered_labeled.rdata'))
 
 ```
 
@@ -195,85 +191,3 @@ length(kong_narwhal_dets_filter@events)
 length(kong_beluga_dets@events) # this should be =5, but event 252 had no detections so it is =4
 length(kong_narwhal_dets@events)
 ```
-
-# Process noise subsets
-
-```{r function to filter out noise events, results = FALSE, include=FALSE}
-filter_noise_acoustic_study <- function(Acoustic_Study){
-  ## remove events that have no detections or very few (< 30 detections)
-  events_list <- Acoustic_Study@events
-  
-  for (i in 1:length(events_list)) {
-    # start counter at zero
-    n_clicks <- 0
-    
-    # loop through detectors and get total number of clicks for each event
-    for (j in 1:length(events_list[[i]]@detectors)) {
-      if (length(events_list[[i]]@detectors) == 0) {
-        n_clicks <- 0
-      }
-      if (length(events_list[[i]]@detectors) == 1) {
-        n_clicks <- length(events_list[[i]]@detectors[[j]]$UID)
-      }
-      else if (length(events_list[[i]]@detectors) > 1){
-        n_clicks_det <- length(events_list[[i]]@detectors[[j]]$UID)
-        n_clicks <- n_clicks + n_clicks_det
-      }
-    }
-    if (n_clicks<=30) {
-      print(paste0("dropped event #", events_list[[i]]@id))
-      Acoustic_Study@events[[events_list[[i]]@id]] <- NULL
-    }
-  }
-  return(Acoustic_Study)
-}
-
-```
-
-
-```{r process Fisher noise detections}
-## using 1 hr intervals from events 819,1036,1091,1132,1197
-
-## Fisher islands dataset
-## use same settings as those for testing the classifier for all the 2019 data
-myPps <- PAMpalSettings(db = here("../Fisher_noise/PAM20209_Zahn_narluga_fisher_noise.sqlite3"),
-                        binaries = here("../Fisher_noise/Binaries"),
-                        sr_hz = 144000, winLen_sec = 0.0025, filterfrom_khz = 20, filterto_khz = NULL)
-
-fisher_noise_dets <- processPgDetections(myPps, mode ='time',
-                                         grouping = here('R/spreadsheets/noise/Fisher_2019_noise_ids_1hr_wavTime.csv'),
-                                         format = '%m/%d/%Y %H:%M:%OS', id='FisherNoise')
-# calculate ici
-fisher_noise <- calculateICI(fisher_noise_dets, time = 'UTC', callType="click")
-
-# remove events that have less than 30 clicks
-fisher_noise_filter <- filter_noise_acoustic_study(fisher_noise)
-
-# save file
-save(fisher_noise_filter, file=here('R/Rdata/noise/Fisher_noise_20kHzPG_20kHzPP_1hr_wavTime.rdata'))
-```
-
-```{r process Kong Oscar noise detections}
-## Kong Oscar dataset
-# use same settings as those for testing the classifier for all the 2019 data
-# myPps <- PAMpalSettings(db = here("../../PAMGuard_ch4/NOISE_subset_Kong/v2/PAM20103_Zahn_narluga_noise_20kHztrigger.sqlite3"),
-#                         binaries = here("../../PAMGuard_ch4/NOISE_subset_Kong/v2/Binaries"),
-#                         sr_hz = 144000, winLen_sec = 0.0025, filterfrom_khz = 15, filterto_khz = NULL)
-
-myPps <- PAMpalSettings(db = here("../Kong_Oscar_noise/PAM20209_Zahn_narluga_kong_noise.sqlite3"),
-                        binaries = here("../Kong_Oscar_noise/Binaries"),
-                        sr_hz = 144000, winLen_sec = 0.0025, filterfrom_khz = 20, filterto_khz = NULL)
-
-kong_noise_dets <- processPgDetections(myPps, mode ='time',
-                                       grouping = here('R/spreadsheets/noise/Kong_2019_noise_1hr_ids_wavTime.csv'),
-                                       format = '%m/%d/%Y %H:%M:%OS', id='KongNoise')
-# calculate ici
-kong_noise <- calculateICI(kong_noise_dets, time = 'UTC', callType="click")
-
-# remove events that have less than 30 clicks
-kong_noise_filter <- filter_noise_acoustic_study(kong_noise)
-
-# save file
-save(kong_noise_filter, file=here('R/Rdata/noise/Kong_noise_20kHzPG_20kHzPP_1hr_wavTime.rdata'))
-```
-

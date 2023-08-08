@@ -1,0 +1,222 @@
+---
+title: "Supplementary File 1"
+subtitle: "Acoustic Event Data Summary"
+author: "Zahn et al. (2023)"
+date: "Date Produced: `r format(Sys.time(), '%B %d, %Y')`"
+output:
+  pdf_document: 
+    latex_engine: pdflatex
+    toc: true
+    toc_depth: 3
+documentclass: article
+geometry:
+- top=0.75in
+- bottom=0.75in
+- left=0.5in
+- right=0.5in
+editor_options: 
+  chunk_output_type: console
+---
+
+***
+
+**Summary**
+
+This supplementary file provides an overview of the data included in all beluga and narwhal acoustic events (each 1 hour) from the Kong Oscar and Fisher Islands moorings. A summary table is provided for each category showing the number of detections for each acoustic event and the sound pressure level (SPL) difference in decibels (dB) between selected third-octave frequency bands.
+
+There are two figures for each event:
+
+- Title: Acoustic event number that provides a unique numeric ID for each 6-hour acoustic event.
+- Left: Concatenated click spectrogram where darker orange colors represent higher energy content.
+- Right: Mean power spectrum for all detections within the event.
+
+A 512 point FFT and Hanning window were used to produce all figures.
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+```{r load packages, results = FALSE, include=FALSE}
+## load required packages
+library(here)
+library(ggplot2)
+library(PAMpal)
+library(dplyr)
+```
+
+```{r load data, results = FALSE, include=FALSE}
+## load Fisher data
+load(here('R/Rdata/1hr/Fish_20kHzPG_0kHzPP_1hr_wavTime_filtered_labeled.rdata'))
+
+## load Kong Oscar data
+load(here('R/Rdata/1hr/Kong_20kHzPG_0kHzPP_1hr_wavTime_filtered_labeled.rdata'))
+
+```
+
+```{r update Binaries location on path, results = FALSE, include=FALSE}
+## if running on Desktop computer, update location of Binaries
+# fish_dets_20kHzPP<- updateFiles(fish_dets_20kHzPP, bin = here('../Fisher/Binaries'), db = here('../Fisher/PAM20209_Zahn_narluga_fisher.sqlite3'))
+# 
+# kong_dets_20kHzPP <- updateFiles(kong_dets_20kHzPP, bin = here('../Kong_Oscar/Binaries'), db = here('../Kong_Oscar/PAM20209_Zahn_narluga_kong.sqlite3'))
+```
+
+```{r function for plots, results = FALSE, include=FALSE}
+## function to plot concatenated click spectrogram and mean power spectrum for each acoustic event
+spec_plot <- function(Acoustic_Study) {
+  ## loop through each event
+  for (i in 1:length(Acoustic_Study@events)) {
+    ## plot
+    calculateAverageSpectra(Acoustic_Study,wl=512,evNum=Acoustic_Study@events[[i]]@id,
+                            sort=FALSE,noise=FALSE,filterfrom_khz=0,
+                            title=paste0("Event #", Acoustic_Study@events[[i]]@id),norm=TRUE)
+
+  }
+}
+```
+
+```{r function to make a summary table of detections}
+print_summary_table <- function(species_spec_df) {
+  ## round numbers to two decimal places
+  species_spec_df_round <- species_spec_df %>% mutate_if(is.double, round, 2)
+  ## build table
+  knitr::kable(species_spec_df_round, row.names=TRUE, align = c('l','r','r','r'),
+               col.names = c("Event ID",
+                             "# detections",
+                             "16 and 25 kHz SPL difference (dB)",
+                             "25 and 40 kHz SPL difference (dB)"),
+               caption = "Summary of the number of detections in each acoustic event with unique ID's and the mean sound pressure level (SPL) difference between the (1) 16 and 25 kHz, and (2) 25 and 40 kHz third-octave bands.")
+}
+
+```
+
+```{r remove noise events, results = FALSE, include=FALSE}
+## remove events with little to no clicks in event
+# Fish_filtered <- filter_noise_acoustic_study(Fisher19_dets_20kHzPG_15kHzPP)
+Fish_filtered <- fish_dets_0kHzPP_filter %>% filter(species!='NOISE')
+Kong_filtered <- kong_dets_0kHzPP_filter %>% filter(species!='NOISE')
+
+## load csv with SPL data
+fish_spl_0kHz_df <- read.csv(here('R/spreadsheets/SPL_difference/model_input/testing_fish_data_spl_diff_0kHz_highpass.csv'))
+kong_spl_0kHz_df <- read.csv(here('R/spreadsheets/SPL_difference/model_input/testing_kong_data_spl_diff_0kHz_highpass.csv'))
+```
+
+# Fisher Islands
+
+## Beluga acoustic events
+
+### Spectrograms and mean spectra
+
+```{r plot fisher beluga, fig.height=3.5, fig.width=9}
+## filter data for beluga events
+fish_beluga_dets <- Fish_filtered %>% dplyr::filter(species=='X045')
+
+## configure settings to plot mean spectrum and spectrogram side by side
+par(mfrow=c(1,2))
+
+## plot concatenated click spectrogram and mean power spectra
+spec_plot(fish_beluga_dets)
+```
+
+### Summary table
+
+```{r summary table fisher beluga, fig.height=3.5, fig.width=9}
+## print summary table
+## select beluga events
+fish_spl_beluga_df <- fish_spl_0kHz_df %>% filter(species=='X045') %>% 
+  select(c(eventId,n_dets,spl_diff_16to25_TOL_dB,spl_diff_25to40_TOL_dB))
+
+print_summary_table(fish_spl_beluga_df)
+
+```
+
+\vspace{0.5in}
+
+## Narwhal acoustic events
+
+### Spectrograms and mean spectra
+
+```{r plot fisher narwhal, fig.height=3.5, fig.width=9}
+## filter data for narwhal events
+fish_narwhal_dets <- Fish_filtered %>% dplyr::filter(species=='X085')
+
+## configure settings to plot mean spectrum and spectrogram side by side
+par(mfrow=c(1,2))
+
+## plot concatenated click spectrogram and mean power spectra
+spec_plot(fish_narwhal_dets)
+```
+
+### Summary table
+
+```{r summary table fisher narwhal, fig.height=3.5, fig.width=9}
+## print summary table
+## select narwhal events
+fish_spl_narwhal_df <- fish_spl_0kHz_df %>% filter(species=='X085') %>%
+  select(c(eventId,n_dets,spl_diff_16to25_TOL_dB,spl_diff_25to40_TOL_dB))
+
+print_summary_table(fish_spl_narwhal_df)
+
+```
+
+
+\vspace{0.5in}
+
+# Kong Oscar
+
+## Beluga acoustic events
+
+### Spectrograms and mean spectra
+
+```{r plot kong beluga, fig.height=3.5, fig.width=9}
+## filter data for beluga events
+kong_beluga_dets <- Kong_filtered %>% dplyr::filter(species=='X045')
+
+## configure settings to plot mean spectrum and spectrogram side by side
+par(mfrow=c(1,2))
+
+## plot concatenated click spectrogram and mean power spectra
+spec_plot(kong_beluga_dets)
+```
+
+### Summary table
+
+```{r summary table kong beluga, fig.height=3.5, fig.width=9}
+## print summary table
+## select beluga events
+kong_spl_beluga_df <- kong_spl_0kHz_df %>% filter(species=='X045') %>%
+  select(c(eventId,n_dets,spl_diff_16to25_TOL_dB,spl_diff_25to40_TOL_dB))
+
+print_summary_table(kong_spl_beluga_df)
+
+```
+
+\vspace{0.5in}
+
+## Narwhal acoustic events
+
+### Spectrograms and mean spectra
+
+```{r plot kong narwhal, fig.height=3.5, fig.width=9}
+## filter data for narwhal events
+kong_narwhal_dets <- Kong_filtered %>% dplyr::filter(species=='X085')
+
+## configure settings to plot mean spectrum and spectrogram side by side
+par(mfrow=c(1,2))
+
+## plot concatenated click spectrogram and mean power spectra
+spec_plot(kong_narwhal_dets)
+```
+
+### Summary table
+
+```{r summary table kong narwhal, fig.height=3.5, fig.width=9}
+## print summary table
+## select narwhal events
+kong_spl_narwhal_df <- kong_spl_0kHz_df %>% filter(species=='X085') %>%
+  select(c(eventId,n_dets,spl_diff_16to25_TOL_dB,spl_diff_25to40_TOL_dB))
+
+print_summary_table(kong_spl_narwhal_df)
+
+```
+
+\vspace{0.5in}
