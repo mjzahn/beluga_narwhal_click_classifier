@@ -182,7 +182,7 @@ write.csv(testing_kong_data_spl_df,
 # Export noise spectra for all events
 
 ```{r extract avgSpec noise function}
-avgSpec_noise <- function(Acoustic_Study, evNum, clipping_level, wl=512) {
+avgSpec_noise <- function(Acoustic_Study, evNum, clipping_level, wl) {
   ## calculate spectra for narwhal events
   avSpec_all <- calculateAverageSpectra(Acoustic_Study,wl=wl,evNum=evNum,
                                         plot=FALSE,sort=FALSE,noise=FALSE,
@@ -209,14 +209,14 @@ avgSpec_noise <- function(Acoustic_Study, evNum, clipping_level, wl=512) {
 
 ```{r function to loop through events}
 # function to loop through each event and get noise spectrum
-get_noise_spec <- function(Acoustic_Study, clipping_level, wl=512) {
+get_noise_spec <- function(Acoustic_Study, clipping_level, wl) {
   # create empty data frame to fill
   noise_spec_df <- data.frame(eventId=c(),species=c())
   
   for (i in 1:length(Acoustic_Study@events)) {
     # run function to calculate SPL differences
     noise_event_spec_df_tmp <- avgSpec_noise(Acoustic_Study, evNum=Acoustic_Study@events[[i]]@id, 
-                                          clipping_level, wl=512)
+                                          clipping_level, wl=wl)
     # append dataframe
     noise_spec_df <- rbind(noise_spec_df, noise_event_spec_df_tmp)
   }
