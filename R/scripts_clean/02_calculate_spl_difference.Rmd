@@ -182,11 +182,11 @@ write.csv(testing_kong_data_spl_df,
 # Export noise spectra for all events
 
 ```{r extract avgSpec noise function}
-avgSpec_noise <- function(Acoustic_Study, evNum, clipping_level, filterfrom_khz) {
+avgSpec_noise <- function(Acoustic_Study, evNum, clipping_level, wl=512) {
   ## calculate spectra for narwhal events
-  avSpec_all <- calculateAverageSpectra(Acoustic_Study,wl=512,evNum=evNum,
+  avSpec_all <- calculateAverageSpectra(Acoustic_Study,wl=wl,evNum=evNum,
                                         plot=FALSE,sort=FALSE,noise=FALSE,
-                                        filterfrom_khz = filterfrom_khz,norm=FALSE)
+                                        filterfrom_khz = 0,norm=FALSE)
   
   ## extract frequency values and mean noise spectra
   freq <- avSpec_all$freq
@@ -209,14 +209,14 @@ avgSpec_noise <- function(Acoustic_Study, evNum, clipping_level, filterfrom_khz)
 
 ```{r function to loop through events}
 # function to loop through each event and get noise spectrum
-get_noise_spec <- function(Acoustic_Study, clipping_level, filterfrom_khz) {
+get_noise_spec <- function(Acoustic_Study, clipping_level, wl=512) {
   # create empty data frame to fill
   noise_spec_df <- data.frame(eventId=c(),species=c())
   
   for (i in 1:length(Acoustic_Study@events)) {
     # run function to calculate SPL differences
     noise_event_spec_df_tmp <- avgSpec_noise(Acoustic_Study, evNum=Acoustic_Study@events[[i]]@id, 
-                                          clipping_level, filterfrom_khz)
+                                          clipping_level, wl=512)
     # append dataframe
     noise_spec_df <- rbind(noise_spec_df, noise_event_spec_df_tmp)
   }
@@ -227,7 +227,7 @@ get_noise_spec <- function(Acoustic_Study, clipping_level, filterfrom_khz) {
 
 ```{r run functions for model input}
 ## 2013 training data ---------------------------
-training_data_noise_df <- get_noise_spec(monodontid_2013_data, clipping_level=206, filterfrom_khz=0)
+training_data_noise_df <- get_noise_spec(monodontid_2013_data, clipping_level=206, wl=512)
 ## save output
 write.csv(training_data_noise_df, 
           here('R/spreadsheets/noise_spec/reson_avg_noise_spec.csv'),
@@ -235,9 +235,9 @@ write.csv(training_data_noise_df,
 
 ## testing data ---------------------------
 ## Fisher Islands
-testing_fish_data_noise_df <- get_noise_spec(fish_dets_0kHzPP_filter, clipping_level=173, filterfrom_khz=0)
 ## select only whale events
-testing_fish_noise_df <- testing_fish_data_noise_df %>% filter(species!='NOISE')
+fish_dets_whale_filter <- fish_dets_0kHzPP_filter %>% filter(species!='NOISE')
+testing_fish_data_noise_df <- get_noise_spec(fish_dets_whale_filter, clipping_level=173, wl=256)
 ## save output
 write.csv(testing_fish_noise_df, 
           here('R/spreadsheets/noise_spec/fish_avg_noise_spec.csv'),
@@ -246,7 +246,7 @@ write.csv(testing_fish_noise_df,
 ## Kong Oscar
 ## select only whale events
 kong_dets_whale_filter <- kong_dets_0kHzPP_filter %>% filter(species!='NOISE')
-testing_kong_data_noise_df <- get_noise_spec(kong_dets_whale_filter, clipping_level=173, filterfrom_khz=0)
+testing_kong_data_noise_df <- get_noise_spec(kong_dets_whale_filter, clipping_level=173, wl=256)
 ## save output
 write.csv(testing_kong_data_noise_df, 
           here('R/spreadsheets/noise_spec/kong_avg_noise_spec.csv'),
