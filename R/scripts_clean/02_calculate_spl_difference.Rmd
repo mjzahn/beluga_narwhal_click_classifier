@@ -236,15 +236,19 @@ write.csv(training_data_noise_df,
 ## testing data ---------------------------
 ## Fisher Islands
 testing_fish_data_noise_df <- get_noise_spec(fish_dets_0kHzPP_filter, clipping_level=173, filterfrom_khz=0)
+## select only whale events
+testing_fish_noise_df <- testing_fish_data_noise_df %>% filter(species!='NOISE')
 ## save output
-write.csv(testing_fish_data_noise_df, 
+write.csv(testing_fish_noise_df, 
           here('R/spreadsheets/noise_spec/fish_avg_noise_spec.csv'),
           row.names = FALSE)
 
 ## Kong Oscar
-testing_kong_data_noise_df <- get_noise_spec(kong_dets_0kHzPP_filter, clipping_level=173, filterfrom_khz=0)
+## select only whale events
+kong_dets_whale_filter <- kong_dets_0kHzPP_filter %>% filter(species!='NOISE')
+testing_kong_data_noise_df <- get_noise_spec(kong_dets_whale_filter, clipping_level=173, filterfrom_khz=0)
 ## save output
-write.csv(testing_kong_data_spl_df, 
+write.csv(testing_kong_data_noise_df, 
           here('R/spreadsheets/noise_spec/kong_avg_noise_spec.csv'),
           row.names = FALSE)
 
