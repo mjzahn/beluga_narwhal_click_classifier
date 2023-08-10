@@ -239,7 +239,7 @@ write.csv(training_data_noise_df,
 fish_dets_whale_filter <- fish_dets_0kHzPP_filter %>% filter(species!='NOISE')
 testing_fish_data_noise_df <- get_noise_spec(fish_dets_whale_filter, clipping_level=173, wl=256)
 ## save output
-write.csv(testing_fish_noise_df, 
+write.csv(testing_fish_data_noise_df, 
           here('R/spreadsheets/noise_spec/fish_avg_noise_spec.csv'),
           row.names = FALSE)
 
@@ -253,3 +253,30 @@ write.csv(testing_kong_data_noise_df,
           row.names = FALSE)
 
 ```
+
+```{r export example avg specs for manuscript}
+calculateAverageSpectra(fish_dets_whale_filter,evNum='13',wl=256,title="",noise=TRUE)
+
+# narwhal example spectra
+narwhal_avSpec <- calculateAverageSpectra(fish_dets_whale_filter,evNum='669',wl=512,title="",noise=FALSE)
+narwhal_noise <- calculateAverageSpectra(fish_dets_whale_filter,evNum='669',wl=256,title="",noise=TRUE)
+
+# export mean spectra
+narwhal_ex_spec <- data.frame(freq=narwhal_avSpec$freq,
+                              avgSpec=narwhal_avSpec$avgSpec,
+                              avgNoise=narwhal_noise$avgNoise)
+write.csv(narwhal_ex_spec, here("R/spreadsheets/narwhal_ex_spec.csv"))
+
+# beluga example spectra
+beluga_avSpec <- calculateAverageSpectra(fish_dets_whale_filter,evNum='1715',wl=512,title="",noise=FALSE)
+beluga_noise <- calculateAverageSpectra(fish_dets_whale_filter,evNum='1715',wl=256,title="",noise=TRUE)
+
+# export mean spectra
+beluga_ex_spec <- data.frame(freq=beluga_avSpec$freq, 
+                             avgSpec=beluga_avSpec$avgSpec,
+                             avgNoise=beluga_noise$avgNoise)
+write.csv(beluga_ex_spec, here("R/spreadsheets/beluga_ex_spec.csv"))
+
+```
+
+
