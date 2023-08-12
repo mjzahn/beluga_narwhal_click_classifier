@@ -1,0 +1,91 @@
+---
+title: "08_event_parameter_summary"
+output: pdf_document
+date: "2023-08-12"
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Export table of parameter estimates for BANTER model (event means)
+
+```{r load data}
+## load required packages
+library(here)
+library(ggplot2)
+library(PAMpal)
+library(dplyr)
+library(tidyr)
+
+## load Fisher data with 20 kHz highpass filter
+load(here("R/Rdata/1hr/Fish_20kHzPG_20kHzPP_1hr_wavTime_filtered_labeled.rdata"))
+## load Kong Oscar data with 20 kHz highpass filter
+load(here("R/Rdata/1hr/Kong_20kHzPG_20kHzPP_1hr_wavTime_filtered_labeled.rdata"))
+
+```
+
+```{r get click data}
+## select only whale events
+fish_whale_dets <- fish_dets_20kHzPP_filter %>% filter(species!='NOISE')
+kong_whale_dets <- kong_dets_20kHzPP_filter %>% filter(species!='NOISE')
+
+## get all click data
+fish_whale_click_data <- getClickData(fish_whale_dets)
+kong_whale_click_data <- getClickData(kong_whale_dets)
+
+## group by eventId and take mean, select only columns with variables
+fish_event_data <- fish_whale_click_data %>% select(c(eventId,species,peak,peak2,peak3,trough,trough2,peakToPeak2,peakToPeak3,peak2ToPeak3,fmin_10dB,fmax_10dB,fmin_3dB,fmax_3dB,BW_10dB,BW_3dB,Q_10dB,Q_3dB,centerkHz_10dB,centerkHz_3dB,duration,All_ici)) %>% 
+  group_by(eventId) %>% 
+  summarise_all(ifelse(is.numeric(.), mean(na.rm=TRUE), first))
+
+kong_event_data <- kong_whale_click_data %>% select(c(eventId,species,peak,peak2,peak3,trough,trough2,peakToPeak2,peakToPeak3,peak2ToPeak3,fmin_10dB,fmax_10dB,fmin_3dB,fmax_3dB,BW_10dB,BW_3dB,Q_10dB,Q_3dB,centerkHz_10dB,centerkHz_3dB,duration,All_ici)) %>% 
+  group_by(eventId) %>% 
+  summarise_all(ifelse(is.numeric(.), mean(na.rm=TRUE), first))
+
+## join dataframes
+event_data <- rbind(fish_event_data, kong_event_data)
+
+```
+
+```{r find parameter means of event data for each species}
+## separate beluga and narwhal events
+beluga_event_data <- event_data %>% filter(species=='X045') %>% select(-c(species,eventId))
+narwhal_event_data <- event_data %>% filter(species=='X085') %>% select(-c(species,eventId))
+
+## calculate mean, sd, and range for each variable
+beluga_event_data_long <- beluga_event_data %>% 
+  pivot_longer(cols='peak':'All_ici',names_to = "variable",values_to = "value")
+
+beluga_data_summary <- beluga_event_data_long %>% group_by(variable) %>% summarise(mean=mean(value),
+                                                            sd=sd(value),
+                                                            min=min(value),
+                                                            max=max(value))
+
+narwhal_event_data_long <- narwhal_event_data %>% 
+  pivot_longer(cols='peak':'All_ici',names_to = "variable",values_to = "value")
+
+narwhal_data_summary <- narwhal_event_data_long %>% group_by(variable) %>% summarise(mean=mean(value),
+                                                            sd=sd(value),
+                                                            min=min(value),
+                                                            max=max(value))
+
+## multiply ici by 1000 to convert from sec to millisec
+beluga_data_summary[beluga_data_summary$variable=="All_ici",2:5] = beluga_data_summary[beluga_data_summary$variable=="All_ici",2:5]*1000
+
+narwhal_data_summary[narwhal_data_summary$variable=="All_ici",2:5] = narwhal_data_summary[narwhal_data_summary$variable=="All_ici",2:5]*1000
+```
+
+```{r make table}
+## make table for supplement
+beluga_data_summary %>% mutate_if(is.numeric,round,digits = 3) %>% mutate(mean=paste(mean,"+",sd),
+                               range=paste(min,"-",max)) %>% select(variable,mean,range)
+
+narwhal_data_summary %>% mutate_if(is.numeric,round,digits = 3) %>% mutate(mean=paste(mean,"+",sd),
+                               range=paste(min,"-",max)) %>% select(variable,mean,range)
+
+
+```
+
