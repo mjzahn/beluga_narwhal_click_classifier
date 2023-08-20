@@ -21,6 +21,8 @@ library(randomForest)
 library(rfPermute)
 ```
 
+# Load Data
+
 ```{r use SPL difference - pooled data}
 fish_test_data <- read.csv(here("R/spreadsheets/SPL_difference/model_input/testing_fish_data_spl_diff_0kHz_highpass.csv"))
 kong_test_data <- read.csv(here("R/spreadsheets/SPL_difference/model_input/testing_kong_data_spl_diff_0kHz_highpass.csv"))
@@ -38,9 +40,9 @@ kong_test_data_select <- kong_test_data %>%
 SPL_diff_df_all <- rbind(fish_test_data_select,kong_test_data_select)
 ```
 
-
-```{r modified code from rfPermute confusionMatrix func}
-# function to calculate prediction interval from output of predict() function
+```{r confusionMatrix func}
+## modified code from rfPermute confusionMatrix func
+## function to calculate prediction interval from output of predict() function
 confusionMatrix_predict <- function(predict_output, SPL_diff_df) {
   ## make confusion matrix
   cm <- table(SPL_diff_df[,1], predict_output)
@@ -94,27 +96,50 @@ confusionMatrix_predict <- function(predict_output, SPL_diff_df) {
 
 ```
 
-```{r run model}
+
+```{r RF sensitivity analysis function}
+## run the RF model over all combinations of sampsize
+
+RF_sampsize_sensitivity_tol <- function(SPL_diff_df) {
+  ## make master df with all possible combinations of sampsize
+  sampsize_max <- length(SPL_diff_df$species[SPL_diff_df$species=='X045'])-1
+  sampsize <- c(2:sampsize_max)
+  
+  ## loop over all possible combinations
+  master_df <- as.data.frame(matrix(nrow = length(sampsize), ncol = 1))
+  yy <- SPL_diff_df$species
+  
+  for (i in 1:length(sampsize)){
+    ranfor <- randomForest(species ~ spl_diff_16to25_TOL_dB + spl_diff_25to40_TOL_dB,
+                           data = SPL_diff_df, 
+                           ntree = 10000, 
+                           importance = TRUE,
+                           replace = FALSE,
+                           sampsize = rep(sampsize[i],2),
+                           proximity = TRUE)
+    
+    ## calculate accuracy
+    rfpred <- predict(ranfor)
+    accuracy <- caret::confusionMatrix(rfpred, yy)
+    master_df[i,1] <- accuracy$overall[1]
+    
+  }
+  
+  ## combine dfs
+  sensitivity <- cbind(sampsize, master_df)
+  print(sensitivity)
+  
+  ## calculate % range of model output
+  max(sensitivity$V1) - min(sensitivity$V1)
+}
+
+```
+
+# Build randomForests for SoundTrap and Reson data
+
+```{r randomForest for soundtrap data}
 ## make sure species is a factor
 SPL_diff_df_all$species <- as.factor(SPL_diff_df_all$species)
-
-## Run random forest model with selected frequency bands
-## calculate sampsize as half the sample size of the smaller species class (=beluga)
-rf_sampsize <- ceiling(length(SPL_diff_df_all$species[SPL_diff_df_all$species=='X045'])/2)
-
-ranfor_soundtrap_spl <- randomForest(species ~ spl_diff_16to23_dB + spl_diff_23to46_dB,
-                                     data = SPL_diff_df_all, 
-                                     ntree = 10000, 
-                                     importance = TRUE,
-                                     replace = FALSE, 
-                                     sampsize = c(rf_sampsize,rf_sampsize),
-                                     proximity = TRUE)
-
-ranfor_soundtrap_spl
-confusionMatrix(ranfor_soundtrap_spl)
-plotTrace(ranfor_soundtrap_spl)
-pctCorrect(ranfor_soundtrap_spl)
-varImpPlot(ranfor_soundtrap_spl)
 
 ## Run random forest model with TOL frequency bands
 ## calculate sampsize as half the sample size of the smaller species class (=beluga)
@@ -130,9 +155,14 @@ ranfor_soundtrap_spl_tol <- randomForest(species ~ spl_diff_16to25_TOL_dB + spl_
 
 ranfor_soundtrap_spl_tol
 confusionMatrix(ranfor_soundtrap_spl_tol)
+
+## calculate accuracy and sensitivity to sampsize parameter
+RF_sampsize_sensitivity_tol(SPL_diff_df_all)
+# accuracy varies by <0.5%
+
+## other model diagnostics
 plotTrace(ranfor_soundtrap_spl_tol)
 plotVotes(ranfor_soundtrap_spl_tol)
-
 varImpPlot(ranfor_soundtrap_spl_tol)
 casePredictions(ranfor_soundtrap_spl_tol)
 
@@ -141,31 +171,30 @@ predictions <- casePredictions(ranfor_soundtrap_spl_tol)
 predictions[predictions$is.correct==FALSE,]
 SPL_diff_df_all[predictions$is.correct==FALSE,] # event 757
 
+
+## Run random forest model with selected frequency bands
+## calculate sampsize as half the sample size of the smaller species class (=beluga)
+rf_sampsize <- ceiling(length(SPL_diff_df_all$species[SPL_diff_df_all$species=='X045'])/2)
+
+ranfor_soundtrap_spl <- randomForest(species ~ spl_diff_16to23_dB + spl_diff_23to46_dB,
+                                     data = SPL_diff_df_all, 
+                                     ntree = 10000, 
+                                     importance = TRUE,
+                                     replace = FALSE, 
+                                     sampsize = c(rf_sampsize,rf_sampsize),
+                                     proximity = TRUE)
+
+ranfor_soundtrap_spl
+confusionMatrix(ranfor_soundtrap_spl)
+
+## other model diagnostics
+plotTrace(ranfor_soundtrap_spl)
+pctCorrect(ranfor_soundtrap_spl)
+varImpPlot(ranfor_soundtrap_spl)
+
 ```
 
-```{r box plots SPL}
-## select columns we need
-fish_test_data_select <- fish_test_data %>% 
-  select(c(species,spl_diff_16to23_dB,spl_diff_23to46_dB,
-           spl_diff_16to25_TOL_dB,spl_diff_25to40_TOL_dB)) %>%
-  filter(species!='NOISE')
-kong_test_data_select <- kong_test_data %>% 
-  select(c(species,spl_diff_16to23_dB,spl_diff_23to46_dB,
-           spl_diff_16to25_TOL_dB,spl_diff_25to40_TOL_dB)) %>% 
-  filter(species!='NOISE')
-
-SPL_diff_df_all <- rbind(fish_test_data_select,kong_test_data_select)
-
-SPL_diff_df_long <- SPL_diff_df_all %>% pivot_longer(!c(species), names_to = "variable", values_to = "values")
-
-ggplot(SPL_diff_df_long, aes(x = species, y = values))+
-  geom_boxplot()+
-  facet_wrap(.~variable, scales = "free")+
-  theme(axis.text.x = element_text(angle = 45, hjust = 1))
-
-```
-
-```{r random forest for reson data}
+```{r randomForest for reson data}
 ## load training 2013 data with SPL calculations
 train_data <- read.csv(here("R/spreadsheets/SPL_difference/model_input/training_data_spl_diff.csv"))
 
@@ -179,6 +208,28 @@ train_spl_data$species[train_spl_data$species==45] <- 'X045'
 
 ## make sure species is a factor
 train_spl_data$species <- as.factor(train_spl_data$species)
+
+## run random forest model with TOL frequency bands
+ranfor_reson_tol <- randomForest(species ~ spl_diff_16to25_TOL_dB + spl_diff_25to40_TOL_dB, 
+                       data = train_spl_data, 
+                       ntree = 10000, 
+                       importance = TRUE,
+                       replace = FALSE,
+                       sampsize = c(rf_sampsize,rf_sampsize), 
+                       proximity = TRUE)
+
+ranfor_reson_tol
+confusionMatrix(ranfor_reson_tol)
+
+## calculate accuracy and sensitivity to sampsize parameter
+RF_sampsize_sensitivity_tol(train_spl_data)
+# accuracy varies by <2.5%
+
+## other model diagnostics
+casePredictions(ranfor_reson_tol)
+predictions <- casePredictions(ranfor_reson_tol)
+train_spl_data[predictions$is.correct==FALSE,] # event 757
+varImpPlot(ranfor_reson_tol)
 
 ## run random forest model with target frequency bands
 ## calculate sampsize as half the sample size of the smaller species class (=beluga)
@@ -194,61 +245,48 @@ ranfor_reson <- randomForest(species ~ spl_diff_16to23_dB + spl_diff_23to46_dB,
 
 ranfor_reson
 confusionMatrix(ranfor_reson)
+
+## other model diagnostics
 plotTrace(ranfor_reson)
 plotVotes(ranfor_reson)
-
 casePredictions(ranfor_reson)
 varImpPlot(ranfor_reson)
 
-## run random forest model with TOL frequency bands
-ranfor_reson_tol <- randomForest(species ~ spl_diff_16to25_TOL_dB + spl_diff_25to40_TOL_dB, 
-                       data = train_spl_data, 
-                       ntree = 10000, 
-                       importance = TRUE,
-                       replace = FALSE,
-                       sampsize = c(rf_sampsize,rf_sampsize), 
-                       proximity = TRUE)
-
-ranfor_reson_tol
-confusionMatrix(ranfor_reson_tol)
-casePredictions(ranfor_reson_tol)
-
-predictions <- casePredictions(ranfor_reson_tol)
-train_spl_data[predictions$is.correct==FALSE,] # event 757
-varImpPlot(ranfor_reson_tol)
-
 ```
+
+# SoundTrap and Reson data predictions
 
 ```{r use reson data to predict SoundTrap}
 ## model with specific frequency band vars
 ## make sure species is a factor
 SPL_diff_df_all$species <- as.factor(SPL_diff_df_all$species)
 
-## model with specific freq bands ---------------------------
-# y_pred <- predict(ranfor_reson, newdata=SPL_diff_df_all[,2:3], type='prob') # to get votes for each event
-y_pred <- predict(ranfor_reson, newdata=SPL_diff_df_all[,3:4])
-## make confusion matrix with confidence intervals
-confusionMatrix_predict(y_pred,SPL_diff_df_all)
-
-## model with TOL vars ---------------------------
+## model with TOL vars
 y_pred <- predict(ranfor_reson_tol, newdata=SPL_diff_df_all[,5:6])
 confusionMatrix_predict(y_pred,SPL_diff_df_all)
-```
 
+## model with specific freq bands
+# y_pred <- predict(ranfor_reson, newdata=SPL_diff_df_all[,2:3], type='prob') # to get votes for each event
+y_pred <- predict(ranfor_reson, newdata=SPL_diff_df_all[,3:4])
+confusionMatrix_predict(y_pred,SPL_diff_df_all)
+
+```
 
 ```{r use SoundTrap to predict reson}
 ## make sure species is a factor
 SPL_diff_df_all$species <- as.factor(SPL_diff_df_all$species)
 
-## model with specific freq bands
-y_pred <- predict(ranfor_soundtrap_spl, newdata=train_spl_data[,2:3])
-confusionMatrix_predict(y_pred,train_spl_data)
-
 ## model with tol bands
 y_pred <- predict(ranfor_soundtrap_spl_tol, newdata=train_spl_data[,4:5])
 confusionMatrix_predict(y_pred,train_spl_data)
 
+## model with specific freq bands
+y_pred <- predict(ranfor_soundtrap_spl, newdata=train_spl_data[,2:3])
+confusionMatrix_predict(y_pred,train_spl_data)
+
 ```
+
+# RF models for Fisher and Kong
 
 ```{r run separate RF models for Fisher and Kong}
 ## make sure species is a factor
@@ -259,19 +297,7 @@ kong_test_data_select$species <- as.factor(kong_test_data_select$species)
 rf_sampsize_fish <- ceiling(length(fish_test_data_select$species[fish_test_data_select$species=='X045'])/2)
 rf_sampsize_kong <- ceiling(length(kong_test_data_select$species[kong_test_data_select$species=='X045'])/2)
 
-## Fisher Islands =================
-
-## run random forest model
-ranfor_fish <- randomForest(species ~ spl_diff_16to23_dB + spl_diff_23to46_dB, 
-                       data = fish_test_data_select, 
-                       ntree = 10000, 
-                       importance = TRUE,
-                       replace = FALSE,
-                       sampsize = c(rf_sampsize_fish,rf_sampsize_fish), 
-                       proximity = TRUE)
-
-ranfor_fish
-confusionMatrix(ranfor_fish)
+## Fisher Islands 
 
 ## run random forest model - TOL
 ranfor_fish_tol <- randomForest(species ~ spl_diff_16to25_TOL_dB + spl_diff_25to40_TOL_dB, 
@@ -285,19 +311,23 @@ ranfor_fish_tol <- randomForest(species ~ spl_diff_16to25_TOL_dB + spl_diff_25to
 ranfor_fish_tol
 confusionMatrix(ranfor_fish_tol)
 
-## Kong Oscar =================
+## calculate accuracy and sensitivity to sampsize parameter
+RF_sampsize_sensitivity_tol(fish_test_data_select)
+# accuracy varies by <0.9%
 
 ## run random forest model
-ranfor_kong <- randomForest(species ~ spl_diff_16to23_dB + spl_diff_23to46_dB, 
-                       data = kong_test_data_select, 
+ranfor_fish <- randomForest(species ~ spl_diff_16to23_dB + spl_diff_23to46_dB, 
+                       data = fish_test_data_select, 
                        ntree = 10000, 
                        importance = TRUE,
                        replace = FALSE,
-                       sampsize = c(rf_sampsize_kong,rf_sampsize_kong),
+                       sampsize = c(rf_sampsize_fish,rf_sampsize_fish), 
                        proximity = TRUE)
 
-ranfor_kong
-confusionMatrix(ranfor_kong)
+ranfor_fish
+confusionMatrix(ranfor_fish)
+
+## Kong Oscar 
 
 ## run random forest model - TOL
 ranfor_kong_tol <- randomForest(species ~ spl_diff_16to25_TOL_dB + spl_diff_25to40_TOL_dB, 
@@ -311,23 +341,39 @@ ranfor_kong_tol <- randomForest(species ~ spl_diff_16to25_TOL_dB + spl_diff_25to
 ranfor_kong_tol
 confusionMatrix(ranfor_kong_tol)
 
+## calculate accuracy and sensitivity to sampsize parameter
+RF_sampsize_sensitivity_tol(kong_test_data_select)
+# accuracy varies by 0%
+
+## run random forest model
+ranfor_kong <- randomForest(species ~ spl_diff_16to23_dB + spl_diff_23to46_dB, 
+                       data = kong_test_data_select, 
+                       ntree = 10000, 
+                       importance = TRUE,
+                       replace = FALSE,
+                       sampsize = c(rf_sampsize_kong,rf_sampsize_kong),
+                       proximity = TRUE)
+
+ranfor_kong
+confusionMatrix(ranfor_kong)
+
 ```
 
 ```{r Use one dataset to predict the other}
-## with selected freq bands ------------------
-## fisher predicts kong
-y_pred_kong <- predict(ranfor_fish, newdata=kong_test_data_select[,3:4])
-confusionMatrix_predict(y_pred_kong,kong_test_data_select)
-## kong predicts fisher
-y_pred_fish <- predict(ranfor_kong, newdata=fish_test_data_select[,3:4])
-confusionMatrix_predict(y_pred_fish,fish_test_data_select)
-
-## with TOL bands ------------------
+## with TOL bands
 ## fisher predicts kong
 y_pred_kong_tol <- predict(ranfor_fish_tol, newdata=kong_test_data_select[,5:6])
 confusionMatrix_predict(y_pred_kong_tol,kong_test_data_select)
 ## kong predicts fisher
 y_pred_fish_tol <- predict(ranfor_kong_tol, newdata=fish_test_data_select[,5:6])
 confusionMatrix_predict(y_pred_fish_tol,fish_test_data_select)
+
+## with selected freq bands
+## fisher predicts kong
+y_pred_kong <- predict(ranfor_fish, newdata=kong_test_data_select[,3:4])
+confusionMatrix_predict(y_pred_kong,kong_test_data_select)
+## kong predicts fisher
+y_pred_fish <- predict(ranfor_kong, newdata=fish_test_data_select[,3:4])
+confusionMatrix_predict(y_pred_fish,fish_test_data_select)
 ```
 
