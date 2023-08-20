@@ -121,19 +121,20 @@ order_vars <- c("peak","peak2","peak3","trough","trough2","peakToPeak2","peakToP
                 "Q_10dB","Q_3dB","fmin_10dB","fmin_3dB","fmax_10dB","fmax_3dB","BW_10dB","BW_3dB",
                 "centerkHz_10dB","centerkHz_3dB","duration","All_ici")
 
+# beluga_data_tbl <- beluga_data_summary %>% mutate_if(is.numeric,round,digits = 1) %>% 
+#   mutate(mean=paste(mean,"+",sd),median=paste(median)) %>% 
+#   select(variable,mean,median) %>% 
+#   slice(match(order_vars, variable))
+
 beluga_data_tbl <- beluga_data_summary %>% mutate_if(is.numeric,round,digits = 1) %>% 
-  mutate(mean=paste(mean,"+",sd),median=paste(median)) %>% 
-  select(variable,mean,median) %>% 
   slice(match(order_vars, variable))
 
 narwhal_data_tbl <- narwhal_data_summary %>% mutate_if(is.numeric,round,digits = 1) %>% 
-  mutate(mean=paste(mean,"+",sd),median=paste(median)) %>% 
-  select(variable,mean,median) %>% 
   slice(match(order_vars, variable))
 
 ## merge tables
-banter_summary_tbl <- cbind(beluga_data_tbl, narwhal_data_tbl[,2:3])
-colnames(banter_summary_tbl) <- c("variable","mean_beluga","median_beluga","mean_narwhal","median_narwhal")
+banter_summary_tbl <- cbind(beluga_data_tbl, narwhal_data_tbl[,2:4])
+colnames(banter_summary_tbl) <- c("variable","mean_beluga","sd_beluga","median_beluga","mean_narwhal","sd_narwhal","median_narwhal")
 
 ## save table
 write.csv(banter_summary_tbl, here("R/spreadsheets/banter_summary_tbl.csv"))
