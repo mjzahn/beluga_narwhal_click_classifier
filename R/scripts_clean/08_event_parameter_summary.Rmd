@@ -37,11 +37,11 @@ fish_whale_click_data <- getClickData(fish_whale_dets)
 kong_whale_click_data <- getClickData(kong_whale_dets)
 
 ## group by eventId and take mean, select only columns with variables
-fish_event_data <- fish_whale_click_data %>% select(c(eventId,species,peak,peak2,peak3,trough,trough2,peakToPeak2,peakToPeak3,peak2ToPeak3,fmin_10dB,fmax_10dB,fmin_3dB,fmax_3dB,BW_10dB,BW_3dB,Q_10dB,Q_3dB,centerkHz_10dB,centerkHz_3dB,duration,All_ici)) %>% 
+fish_event_data <- fish_whale_click_data %>%  select(c(eventId,species,peak,peak2,peak3,trough,trough2,peakToPeak2,peakToPeak3,peak2ToPeak3,fmin_10dB,fmax_10dB,fmin_3dB,fmax_3dB,BW_10dB,BW_3dB,Q_10dB,Q_3dB,centerkHz_10dB,centerkHz_3dB,duration,All_ici)) %>% 
   group_by(eventId) %>% 
   summarise_all(ifelse(is.numeric(.), mean(na.rm=TRUE), first))
 
-kong_event_data <- kong_whale_click_data %>% select(c(eventId,species,peak,peak2,peak3,trough,trough2,peakToPeak2,peakToPeak3,peak2ToPeak3,fmin_10dB,fmax_10dB,fmin_3dB,fmax_3dB,BW_10dB,BW_3dB,Q_10dB,Q_3dB,centerkHz_10dB,centerkHz_3dB,duration,All_ici)) %>% 
+kong_event_data <- kong_whale_click_data %>% filter(duration<500) %>%  select(c(eventId,species,peak,peak2,peak3,trough,trough2,peakToPeak2,peakToPeak3,peak2ToPeak3,fmin_10dB,fmax_10dB,fmin_3dB,fmax_3dB,BW_10dB,BW_3dB,Q_10dB,Q_3dB,centerkHz_10dB,centerkHz_3dB,duration,All_ici)) %>% 
   group_by(eventId) %>% 
   summarise_all(ifelse(is.numeric(.), mean(na.rm=TRUE), first))
 
@@ -49,6 +49,41 @@ kong_event_data <- kong_whale_click_data %>% select(c(eventId,species,peak,peak2
 event_data <- rbind(fish_event_data, kong_event_data)
 
 ```
+
+```{r look at distributions of parameter values}
+hist(c(fish_whale_click_data$duration,kong_whale_click_data$duration))
+hist(c(fish_whale_click_data$peak,kong_whale_click_data$peak))
+hist(c(fish_whale_click_data$peak2,kong_whale_click_data$peak2),xlab='Frequency (khz)',
+     ylab='# clicks',main='peak2')
+hist(c(fish_whale_click_data$peak3,kong_whale_click_data$peak3),xlab='Frequency (khz)',
+     ylab='# clicks',main='peak3')
+
+hist(c(fish_whale_click_data$trough,kong_whale_click_data$trough))
+hist(c(fish_whale_click_data$trough2,kong_whale_click_data$trough2),xlab='Frequency (khz)',
+     ylab='# clicks',main='trough2')
+
+hist(c(fish_whale_click_data$peakToPeak2,kong_whale_click_data$peakToPeak2))
+hist(c(fish_whale_click_data$peakToPeak3,kong_whale_click_data$peakToPeak3))
+hist(c(fish_whale_click_data$peak2ToPeak3,kong_whale_click_data$peak2ToPeak3),xlab='Frequency (khz)',
+     ylab='# clicks',main='peak2ToPeak3')
+
+hist(c(fish_whale_click_data$Q_10dB,kong_whale_click_data$Q_10dB))
+hist(c(fish_whale_click_data$fmin_10dB,kong_whale_click_data$fmin_10dB))
+hist(c(fish_whale_click_data$fmax_10dB,kong_whale_click_data$fmax_10dB))
+hist(c(fish_whale_click_data$BW_10dB,kong_whale_click_data$BW_10dB))
+hist(c(fish_whale_click_data$centerkHz_10dB,kong_whale_click_data$centerkHz_10dB))
+hist(c(fish_whale_click_data$Q_3dB,kong_whale_click_data$Q_3dB))
+hist(c(fish_whale_click_data$fmin_3dB,kong_whale_click_data$fmin_3dB))
+hist(c(fish_whale_click_data$fmax_3dB,kong_whale_click_data$fmax_3dB))
+hist(c(fish_whale_click_data$BW_3dB,kong_whale_click_data$BW_3dB))
+hist(c(fish_whale_click_data$centerkHz_3dB,kong_whale_click_data$centerkHz_3dB))
+
+hist(c(fish_whale_click_data$Click_Detector_2_ici,kong_whale_click_data$Click_Detector_2_ici))
+hist(c(fish_whale_click_data$Click_Detector_3_ici,kong_whale_click_data$Click_Detector_3_ici))
+hist(c(fish_whale_click_data$All_ici,kong_whale_click_data$All_ici))
+
+```
+
 
 ```{r find parameter means of event data for each species}
 ## separate beluga and narwhal events
@@ -61,31 +96,46 @@ beluga_event_data_long <- beluga_event_data %>%
 
 beluga_data_summary <- beluga_event_data_long %>% group_by(variable) %>% summarise(mean=mean(value),
                                                             sd=sd(value),
-                                                            min=min(value),
-                                                            max=max(value))
+                                                            median=median(value))
 
 narwhal_event_data_long <- narwhal_event_data %>% 
   pivot_longer(cols='peak':'All_ici',names_to = "variable",values_to = "value")
 
 narwhal_data_summary <- narwhal_event_data_long %>% group_by(variable) %>% summarise(mean=mean(value),
                                                             sd=sd(value),
-                                                            min=min(value),
-                                                            max=max(value))
+                                                            median=median(value))
 
 ## multiply ici by 1000 to convert from sec to millisec
-beluga_data_summary[beluga_data_summary$variable=="All_ici",2:5] = beluga_data_summary[beluga_data_summary$variable=="All_ici",2:5]*1000
+beluga_data_summary[beluga_data_summary$variable=="All_ici",2:4] = beluga_data_summary[beluga_data_summary$variable=="All_ici",2:4]*1000
 
-narwhal_data_summary[narwhal_data_summary$variable=="All_ici",2:5] = narwhal_data_summary[narwhal_data_summary$variable=="All_ici",2:5]*1000
+narwhal_data_summary[narwhal_data_summary$variable=="All_ici",2:4] = narwhal_data_summary[narwhal_data_summary$variable=="All_ici",2:4]*1000
+
+
 ```
 
 ```{r make table}
 ## make table for supplement
-beluga_data_summary %>% mutate_if(is.numeric,round,digits = 3) %>% mutate(mean=paste(mean,"+",sd),
-                               range=paste(min,"-",max)) %>% select(variable,mean,range)
 
-narwhal_data_summary %>% mutate_if(is.numeric,round,digits = 3) %>% mutate(mean=paste(mean,"+",sd),
-                               range=paste(min,"-",max)) %>% select(variable,mean,range)
+## create order of variables that we want in table
+order_vars <- c("peak","peak2","peak3","trough","trough2","peakToPeak2","peakToPeak3","peak2ToPeak3",
+                "Q_10dB","Q_3dB","fmin_10dB","fmin_3dB","fmax_10dB","fmax_3dB","BW_10dB","BW_3dB",
+                "centerkHz_10dB","centerkHz_3dB","duration","All_ici")
 
+beluga_data_tbl <- beluga_data_summary %>% mutate_if(is.numeric,round,digits = 1) %>% 
+  mutate(mean=paste(mean,"+",sd),median=paste(median)) %>% 
+  select(variable,mean,median) %>% 
+  slice(match(order_vars, variable))
 
+narwhal_data_tbl <- narwhal_data_summary %>% mutate_if(is.numeric,round,digits = 1) %>% 
+  mutate(mean=paste(mean,"+",sd),median=paste(median)) %>% 
+  select(variable,mean,median) %>% 
+  slice(match(order_vars, variable))
+
+## merge tables
+banter_summary_tbl <- cbind(beluga_data_tbl, narwhal_data_tbl[,2:3])
+colnames(banter_summary_tbl) <- c("variable","mean_beluga","median_beluga","mean_narwhal","median_narwhal")
+
+## save table
+write.csv(banter_summary_tbl, here("R/spreadsheets/banter_summary_tbl.csv"))
 ```
 

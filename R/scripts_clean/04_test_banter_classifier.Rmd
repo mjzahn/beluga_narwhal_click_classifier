@@ -31,29 +31,6 @@ Sys.setenv(TZ = 'UTC')
 
 ```
 
-```{r look at training model with spl diff}
-## look at training model with SPL diff
-summary(bant.mdl)
-
-## get RF data from banter model
-event.rf <- getBanterModel(bant.mdl, "event")
-rfPermute::plotProximity(event.rf)
-model_predictions <- casePredictions(event.rf)
-model_predictions %>% filter(original=='X045',predicted=='X085')
-
-## load training data
-load(file=here('R/Rdata/train_data.rdata'))
-
-## update path
-train_data <- updateFiles(train_data, bin = "E:/MS_Chapter_2/PAMGuard/Binaries", db = "E:/MS_Chapter_2/PAMGuard/PAM20103_Zahn_narluga-ECdetection.sqlite3")
-
-## plot beluga event that was misclassified
-calculateAverageSpectra(train_data,evNum = 'PAM20103_Zahn_narluga-ECdetection.OE37')
-calculateAverageSpectra(train_data,evNum = 'PAM20103_Zahn_narluga-ECdetection.OE84') # misclassified
-calculateAverageSpectra(train_data,evNum = 'PAM20103_Zahn_narluga-ECdetection.OE85') # beluga
-calculateAverageSpectra(train_data,evNum = 'PAM20103_Zahn_narluga-ECdetection.OE86') # beluga
-```
-
 ```{r modified code from rfPermute confusionMatrix func}
 # function to calculate prediction interval from output of predict() function
 confusionMatrix_predict <- function(predict_output) {

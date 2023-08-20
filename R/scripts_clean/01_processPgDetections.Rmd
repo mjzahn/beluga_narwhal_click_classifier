@@ -1,5 +1,5 @@
 ---
-title: "Data wrangling"
+title: "Process PamGuard Detections"
 author: "Marie Zahn"
 date: '2023-07-14'
 editor_options: 
