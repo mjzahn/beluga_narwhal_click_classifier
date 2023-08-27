@@ -224,55 +224,91 @@ confusionMatrix_predict(score_kong_whale_spl_tol)
 
 ```
 
-```{r save classification scores}
-save(score_fish_whale,file=here('R/Rdata/score_fish_whale.rdata'))
-save(score_kong_whale,file=here('R/Rdata/score_kong_whale.rdata'))
+# Asses variable importance and percent votes
 
-write.csv(score_kong_whale$predict.df, here('R/Kong_scores_whale.csv'))
-write.csv(score_fish_whale$predict.df, here('R/Fish_scores_whale.csv'))
-```
-
-# Need to look at events 293 and 299
-
-```{r avg spectra and concat spectrogram}
-# average spectra for all beluga events
-calculateAverageSpectra(Fisher_2019_data_20kHz,299,plot=TRUE, noise = FALSE,
-                        filterfrom_khz = 0)
-
-# look at average spectra and spectrograms for beluga events that were misclassified (293,299) and correctly classified (305)
-calculateAverageSpectra(Fisher_2019_data_20kHz,249,plot=TRUE, noise = FALSE,
-                        filterfrom_khz = 20)
-
-calculateAverageSpectra(Fisher_2019_data_20kHz,249,plot=TRUE, noise = FALSE,
-                        filterfrom_khz = 20)
-
-# look at average spectra and spectrograms for narwhal events that were
-# correctly classified (30, 98, 206)
-calculateAverageSpectra(Fisher_2019_data_20kHz,30,plot=TRUE,
-                        filterfrom_khz = 20, noise=TRUE)
-
-# can also look at events that were classified as narwhal events but were not labeled by Michael to be so: 20, 16, 46 (selected randomly). Event 20 might actually be narwhals
-
-```
-
-## Print out scores
-
-```{r}
-write.csv(score_Fisher$predict.df, 'Fisher_scores.csv')
-```
-
-## Look at events for false positives
-
-```{r}
-# Change banterData to whatever the name of your banter ready data is
-oneEvDets <- banterWHICEAS20$detectors
-# Change this to whatever event you are interested in
-evKeep <- c('279')
-for(d in seq_along(oneEvDets)) {
-    oneEvDets[[d]] <- filter(oneEvDets[[d]], event.id %in% evKeep)
+```{r plotAssignments from rfPermute}
+# forked code from Eric Archer's gtihub swfscMisc
+plotAssignments <- function(
+  probs, orig, type = NULL, ylab = NULL, freq.sep.line = TRUE, plot = TRUE
+) {
+  freq <- table(orig)
+  type <- if(is.null(type)) {
+    if(all(freq <= 30)) "bar" else "area"
+  } else {
+    match.arg(type, c("bar", "area"))
+  }
+  
+  if(is.null(colnames(probs))) {
+    colnames(probs) <- paste("Group", 1:ncol(probs), sep = ".")
+  }
+  
+  df <- data.frame(orig = orig, probs, check.names = FALSE)
+  i <- do.call(order, c(as.list(df), list(decreasing = TRUE)))
+  df <- df[i, ] %>% 
+    dplyr::mutate(id = 1:dplyr::n()) %>% 
+    tidyr::pivot_longer(-c("id", "orig"), names_to = "pred", values_to = "prob")
+  if(!is.null(freq.sep.line)) {
+    levels(df$orig) <- paste0(
+      names(freq), ifelse(freq.sep.line, "\n", " "), "(n = ", freq, ")"
+    )
+  }
+  
+  if(is.null(ylab)) ylab <- "Assignment Probability"
+  
+  p <- ggplot2::ggplot(df, ggplot2::aes_string("id", "prob")) +
+    switch(
+      type,
+      area = ggplot2::geom_area(
+        ggplot2::aes_string(fill = "pred"), 
+        stat = "identity"
+      ),
+      bar = ggplot2::geom_bar(
+        ggplot2::aes_string(fill = "pred"), 
+        stat = "identity"
+      )
+    ) +
+    ggplot2::scale_fill_discrete(
+      guide = ggplot2::guide_legend(title = "Predicted")
+    ) +
+    ggplot2::scale_x_continuous(expand = c(0, 0)) +
+    ggplot2::scale_y_continuous(expand = c(0, 0)) +
+    ggplot2::facet_wrap(~ orig, scales = "free_x") +
+    ggplot2::ylab(ylab) +
+    ggplot2::theme(
+      legend.position = "top",
+      text = ggplot2::element_text(size = 14),
+      axis.text.x = ggplot2::element_blank(),
+      axis.title.x = ggplot2::element_blank(),
+      axis.ticks.x = ggplot2::element_blank(),
+      plot.title = ggplot2::element_text(hjust = 0),
+      panel.grid = ggplot2::element_blank(),
+      panel.background = ggplot2::element_blank()
+    )
+  if(plot) print(p)
+  invisible(p)
 }
-# dropping any detectors that were not in this event
-nDets <- sapply(oneEvDets, nrow)
-EvDetsW279 <- oneEvDets[nDets > 0]
-# This is now a list of detectors that only have that event info
 ```
+
+
+```{r plotVotes}
+# plotVotes of model predictions
+# base model without SPL measures
+# BANTER predicts fisher
+plotAssignments((score_fish_whale$predict.df[,3:4]/rowSums(score_fish_whale$predict.df[,3:4]))*100,
+                score_fish_whale$predict.df$original,ylab = "Percent of votes")
+
+# BANTER predicts kong oscar
+plotAssignments((score_kong_whale$predict.df[,3:4]/rowSums(score_kong_whale$predict.df[,3:4]))*100,
+                score_kong_whale$predict.df$original,ylab = "Percent of votes")
+
+# BANTER models with TOL measures
+# BANTER predicts fisher
+plotAssignments((score_fish_whale_spl_tol$predict.df[,3:4]/rowSums(score_fish_whale_spl_tol$predict.df[,3:4]))*100,
+                score_fish_whale_spl_tol$predict.df$original,ylab = "Percent of votes")
+
+# BANTER predicts kong oscar
+plotAssignments((score_kong_whale_spl_tol$predict.df[,3:4]/rowSums(score_kong_whale_spl_tol$predict.df[,3:4]))*100,
+                score_kong_whale_spl_tol$predict.df$original,ylab = "Percent of votes")
+
+```
+
