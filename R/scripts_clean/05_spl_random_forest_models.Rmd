@@ -254,6 +254,48 @@ varImpPlot(ranfor_reson)
 
 ```
 
+# Build model with pooled Reson and SoundTrap detections
+
+```{r Reson and SoundTrap model}
+# combine Reson and ST datasets
+spl_reson_soundtrap <- rbind(train_spl_data, SPL_diff_df_all)
+
+## make sure species is a factor
+spl_reson_soundtrap$species <- as.factor(spl_reson_soundtrap$species)
+
+rf_sampsize <- ceiling(length(spl_reson_soundtrap$species[spl_reson_soundtrap$species=='X045'])/2)
+
+## run random forest model with TOL frequency bands
+ranfor_reson_soundtrap_tol <- randomForest(species ~ spl_diff_16to25_TOL_dB + spl_diff_25to40_TOL_dB, 
+                       data = spl_reson_soundtrap, 
+                       ntree = 10000, 
+                       importance = TRUE,
+                       replace = FALSE,
+                       sampsize = c(rf_sampsize,rf_sampsize), 
+                       proximity = TRUE)
+
+ranfor_reson_soundtrap_tol
+confusionMatrix(ranfor_reson_soundtrap_tol)
+
+## calculate accuracy and sensitivity to sampsize parameter
+RF_sampsize_sensitivity_tol(spl_reson_soundtrap)
+
+
+## run random forest model with target frequency bands
+ranfor_reson_soundtrap <- randomForest(species ~ spl_diff_16to23_dB + spl_diff_23to46_dB, 
+                       data = spl_reson_soundtrap, 
+                       ntree = 10000, 
+                       importance = TRUE,
+                       replace = FALSE,
+                       sampsize = c(rf_sampsize,rf_sampsize), 
+                       proximity = TRUE)
+
+ranfor_reson_soundtrap
+confusionMatrix(ranfor_reson_soundtrap)
+
+```
+
+
 # SoundTrap and Reson data predictions
 
 ```{r use reson data to predict SoundTrap}
