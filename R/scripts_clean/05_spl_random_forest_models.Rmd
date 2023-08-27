@@ -304,27 +304,24 @@ confusionMatrix(ranfor_reson_soundtrap)
 SPL_diff_df_all$species <- as.factor(SPL_diff_df_all$species)
 
 ## model with TOL vars
-y_pred <- predict(ranfor_reson_tol, newdata=SPL_diff_df_all[,5:6])
-confusionMatrix_predict(y_pred,SPL_diff_df_all)
+y_pred_reson_tol <- predict(ranfor_reson_tol, newdata=SPL_diff_df_all[,5:6], type='pred')
+confusionMatrix_predict(y_pred_reson_tol,SPL_diff_df_all)
 
 ## model with specific freq bands
 # y_pred <- predict(ranfor_reson, newdata=SPL_diff_df_all[,2:3], type='prob') # to get votes for each event
-y_pred <- predict(ranfor_reson, newdata=SPL_diff_df_all[,3:4])
-confusionMatrix_predict(y_pred,SPL_diff_df_all)
+y_pred_reson <- predict(ranfor_reson, newdata=SPL_diff_df_all[,3:4])
+confusionMatrix_predict(y_pred_reson,SPL_diff_df_all)
 
 ```
 
 ```{r use SoundTrap to predict reson}
-## make sure species is a factor
-SPL_diff_df_all$species <- as.factor(SPL_diff_df_all$species)
-
 ## model with tol bands
-y_pred <- predict(ranfor_soundtrap_spl_tol, newdata=train_spl_data[,4:5])
-confusionMatrix_predict(y_pred,train_spl_data)
+y_pred_soundtrap_tol <- predict(ranfor_soundtrap_spl_tol, newdata=train_spl_data[,5:6])
+confusionMatrix_predict(y_pred_soundtrap_tol,train_spl_data)
 
 ## model with specific freq bands
-y_pred <- predict(ranfor_soundtrap_spl, newdata=train_spl_data[,2:3])
-confusionMatrix_predict(y_pred,train_spl_data)
+y_pred_soundtrap <- predict(ranfor_soundtrap_spl, newdata=train_spl_data[,3:4])
+confusionMatrix_predict(y_pred_soundtrap,train_spl_data)
 
 ```
 
@@ -419,13 +416,145 @@ y_pred_fish <- predict(ranfor_kong, newdata=fish_test_data_select[,3:4])
 confusionMatrix_predict(y_pred_fish,fish_test_data_select)
 ```
 
+# Asses variable importance and percent votes
+
+```{r plotAssignments from rfPermute}
+# forked code from Eric Archer's gtihub swfscMisc
+plotAssignments <- function(
+  probs, orig, type = NULL, ylab = NULL, freq.sep.line = TRUE, plot = TRUE
+) {
+  freq <- table(orig)
+  type <- if(is.null(type)) {
+    if(all(freq <= 30)) "bar" else "area"
+  } else {
+    match.arg(type, c("bar", "area"))
+  }
+  
+  if(is.null(colnames(probs))) {
+    colnames(probs) <- paste("Group", 1:ncol(probs), sep = ".")
+  }
+  
+  df <- data.frame(orig = orig, probs, check.names = FALSE)
+  i <- do.call(order, c(as.list(df), list(decreasing = TRUE)))
+  df <- df[i, ] %>% 
+    dplyr::mutate(id = 1:dplyr::n()) %>% 
+    tidyr::pivot_longer(-c("id", "orig"), names_to = "pred", values_to = "prob")
+  if(!is.null(freq.sep.line)) {
+    levels(df$orig) <- paste0(
+      names(freq), ifelse(freq.sep.line, "\n", " "), "(n = ", freq, ")"
+    )
+  }
+  
+  if(is.null(ylab)) ylab <- "Assignment Probability"
+  
+  p <- ggplot2::ggplot(df, ggplot2::aes_string("id", "prob")) +
+    switch(
+      type,
+      area = ggplot2::geom_area(
+        ggplot2::aes_string(fill = "pred"), 
+        stat = "identity"
+      ),
+      bar = ggplot2::geom_bar(
+        ggplot2::aes_string(fill = "pred"), 
+        stat = "identity"
+      )
+    ) +
+    ggplot2::scale_fill_discrete(
+      guide = ggplot2::guide_legend(title = "Predicted")
+    ) +
+    ggplot2::scale_x_continuous(expand = c(0, 0)) +
+    ggplot2::scale_y_continuous(expand = c(0, 0)) +
+    ggplot2::facet_wrap(~ orig, scales = "free_x") +
+    ggplot2::ylab(ylab) +
+    ggplot2::theme(
+      legend.position = "top",
+      text = ggplot2::element_text(size = 14),
+      axis.text.x = ggplot2::element_blank(),
+      axis.title.x = ggplot2::element_blank(),
+      axis.ticks.x = ggplot2::element_blank(),
+      plot.title = ggplot2::element_text(hjust = 0),
+      panel.grid = ggplot2::element_blank(),
+      panel.background = ggplot2::element_blank()
+    )
+  if(plot) print(p)
+  invisible(p)
+}
+```
 
 ```{r importance scores and plotVotes}
-# look at which variable is most important for species classification
+## look at which variable is most important for species classification
+
+# model development
 importance(ranfor_soundtrap_spl_tol)
+importance(ranfor_reson_tol)
+importance(ranfor_reson_soundtrap_tol)
+importance(ranfor_fish_tol)
+importance(ranfor_kong_tol)
 
-# plot Votes to assess overall model confidence in predictions
+## plot Votes to assess overall model confidence in predictions
+# model development
+plotVotes(ranfor_soundtrap_spl_tol)
+plotVotes(ranfor_reson_tol)
+plotVotes(ranfor_reson_soundtrap_tol)
+plotVotes(ranfor_fish_tol)
+plotVotes(ranfor_kong_tol)
 
+# model predictions
+y_pred_reson_tol <- predict(ranfor_reson_tol, newdata=SPL_diff_df_all[,5:6], type='prob')
+y_pred_soundtrap_tol <- predict(ranfor_soundtrap_spl_tol, newdata=train_spl_data[,5:6], type='prob')
+y_pred_kong_tol <- predict(ranfor_fish_tol, newdata=kong_test_data_select[,5:6], type='prob')
+y_pred_fish_tol <- predict(ranfor_kong_tol, newdata=fish_test_data_select[,5:6], type='prob')
+
+# plotVotes of model predictions
+# reson to predict soundtrap
+plotAssignments((y_pred_reson_tol/rowSums(y_pred_reson_tol))*100,
+                SPL_diff_df_all$species,ylab = "Percent of votes")
+# soundtrap to predict reson
+plotAssignments((y_pred_soundtrap_tol/rowSums(y_pred_soundtrap_tol))*100,
+                train_spl_data$species,ylab = "Percent of votes")
+
+plotAssignments((y_pred_kong_tol/rowSums(y_pred_kong_tol))*100,
+                kong_test_data_select$species,ylab = "Percent of votes")
+
+plotAssignments((y_pred_fish_tol/rowSums(y_pred_fish_tol))*100,
+                fish_test_data_select$species,ylab = "Percent of votes")
+
+```
+
+```{r export example plot votes fig for supplement}
+# first change species codes to species names
+levels(spl_reson_soundtrap$species) <- c("Beluga","Narwhal")
+
+## run random forest model with TOL frequency bands
+ranfor_reson_soundtrap_tol <- randomForest(species ~ spl_diff_16to25_TOL_dB + spl_diff_25to40_TOL_dB, 
+                       data = spl_reson_soundtrap, 
+                       ntree = 10000, 
+                       importance = TRUE,
+                       replace = FALSE,
+                       sampsize = c(rf_sampsize,rf_sampsize), 
+                       proximity = TRUE)
+
+plotVotes_ex <- plotVotes(ranfor_reson_soundtrap_tol)
+ggsave(here("R/figures/plotVotes_example.png"), dpi=300)
+
+# PlotVotes example of poor predictions
+# soundtrap to predict reson
+levels(train_spl_data$species) <- c("Beluga","Narwhal")
+colnames(y_pred_soundtrap_tol) <- c("Beluga","Narwhal")
+
+plotAssignments((y_pred_soundtrap_tol/rowSums(y_pred_soundtrap_tol))*100,
+                train_spl_data$species,ylab = "Percent of votes")
+
+ggsave(here("R/figures/plotVotes_ST-pred-reson.png"), dpi=300)
+
+# reson predicts soundtrap
+levels(SPL_diff_df_all$species) <- c("Beluga","Narwhal")
+colnames(y_pred_reson_tol) <- c("Beluga","Narwhal")
+
+plotAssignments((y_pred_reson_tol/rowSums(y_pred_reson_tol))*100,
+                SPL_diff_df_all$species,ylab = "Percent of votes")
+
+ggsave(here("R/figures/plotVotes_reson-pred-ST.png"), dpi=300)
 
 ```
 
