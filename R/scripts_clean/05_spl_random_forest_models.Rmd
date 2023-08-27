@@ -93,7 +93,6 @@ confusionMatrix_predict <- function(predict_output, SPL_diff_df) {
   )
 }
 
-
 ```
 
 
@@ -164,6 +163,7 @@ RF_sampsize_sensitivity_tol(SPL_diff_df_all)
 plotTrace(ranfor_soundtrap_spl_tol)
 plotVotes(ranfor_soundtrap_spl_tol)
 varImpPlot(ranfor_soundtrap_spl_tol)
+importance(ranfor_soundtrap_spl_tol)
 casePredictions(ranfor_soundtrap_spl_tol)
 
 ## look at one narwhal event that was misclassified
@@ -375,5 +375,15 @@ confusionMatrix_predict(y_pred_kong,kong_test_data_select)
 ## kong predicts fisher
 y_pred_fish <- predict(ranfor_kong, newdata=fish_test_data_select[,3:4])
 confusionMatrix_predict(y_pred_fish,fish_test_data_select)
+```
+
+
+```{r importance scores and plotVotes}
+# look at which variable is most important for species classification
+importance(ranfor_soundtrap_spl_tol)
+
+# plot Votes to assess overall model confidence in predictions
+
+
 ```
 
