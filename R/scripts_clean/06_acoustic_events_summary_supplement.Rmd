@@ -1,7 +1,7 @@
 ---
-title: "Supplementary File 1"
+title: "Catalogue of Beluga and Narwhal Click Spectra and Spectrograms from SoundTrap Recordings"
 subtitle: "Acoustic Event Data Summary"
-author: "Zahn et al. (2023)"
+author: "Marie J. Zahn, Michael Ladegaard, Malene Simon, Kathleen M. Stafford, Taiki Sakai, Kristin L. Laidre"
 date: "Date Produced: `r format(Sys.time(), '%B %d, %Y')`"
 output:
   pdf_document: 
@@ -22,7 +22,7 @@ editor_options:
 
 **Summary**
 
-This supplementary file provides an overview of the data included in all beluga and narwhal acoustic events (each 1 hour) from the Kong Oscar and Fisher Islands moorings. A summary table is provided for each category showing the number of detections for each acoustic event and the sound pressure level (SPL) difference in decibels (dB) between selected third-octave frequency bands.
+This supplementary file provides an overview of the data included in all beluga and narwhal acoustic events (each 1 hour) from SoundTrap recordings collected at the Kong Oscar and Fisher Islands mooring sites. A summary table is provided for each category showing the number of detections for each acoustic event and the sound pressure level (SPL) difference in decibels (dB) between selected third-octave frequency bands.
 
 There are two figures for each event:
 
