@@ -20,11 +20,13 @@ library(dplyr)
 #Set time zone to UTC
 Sys.setenv(TZ = 'UTC')
 
-# install PAMpal package from GitHub
+# install PAMpal package from GitHub (or get latest version)
 # devtools::install_github('TaikiSan21/PAMpal')
 # # install BANTER package from GitHub
 # devtools::install_github('ericarcher/banter')
 ```
+
+Function that removes events that have no detections or very few (<30).
 
 ```{r function to filter out noise events, results = FALSE, include=FALSE}
 filter_noise_acoustic_study <- function(Acoustic_Study){
@@ -60,10 +62,13 @@ filter_noise_acoustic_study <- function(Acoustic_Study){
 
 # Process Fisher and Kong Oscar subsets
 
-These subsets were run in PAMGuard with 4-pole 20 kHz highpass for trigger and 1 kHz pre-filter bandpass.
+These subsets were run in PAMGuard with 4-pole 20 kHz high pass for trigger and 1 kHz pre-filter bandpass.
+A 4-pole 20 kHz high pass filter is applied below for click parameter calculations.
 
 ```{r process Fisher and KO subsets}
 #### Fisher Islands -------------
+## version 2: with 1 kHz highpass filter, 20 kHz trigger, and SPL difference threshold
+## version 3: with 1 kHz highpass filter, 20 kHz trigger
 myPps <- PAMpalSettings(db = here("../../PAMGuard_ch4/subset_Fisher/v2/PAM20103_Zahn_narluga_Fisher-subset_20kHztrigger.sqlite3"),
                         binaries = here("../../PAMGuard_ch4/subset_Fisher/v2/Binaries"),
                         sr_hz = 144000, winLen_sec = 0.0025, filterfrom_khz = 20, filterto_khz = NULL)
@@ -85,7 +90,7 @@ save(Fisher19_subset_dets_20kHzPG_15kHzPP, file='R/final_test/Rdata/Fisher19_sub
 ## version 3: with 1 kHz highpass filter, 20 kHz trigger
 
 myPps <- PAMpalSettings(db = here("../../PAMGuard_ch4/subset_Kong/v3/PAM20103_Zahn_narluga_Kong-subset_20kHztrigger.sqlite3"),
-                        binaries = here("../../PAMGuard_ch4/subset_Kong/v3/Binaries"),
+                        binaries = here("../../PAMGuard_ch4/subset_Kong/v2/Binaries"),
                         sr_hz = 144000, winLen_sec = 0.0025, filterfrom_khz = 20,filterto_khz = NULL)
 
 Kong19_subset_dets_20kHzPG_15kHzPP <- processPgDetections(myPps, mode ='time',
@@ -96,16 +101,18 @@ Kong19_subset_dets_20kHzPG_15kHzPP <- processPgDetections(myPps, mode ='time',
 Kong19_subset_dets_20kHzPG_15kHzPP <- calculateICI(Kong19_subset_dets_20kHzPG_15kHzPP, time = 'UTC', callType="click")
 
 # save file
-save(Kong19_subset_dets_20kHzPG_15kHzPP, file=here('R/final_test/Rdata/KO19_subset_20kHzPG_15kHzPP_6hourly_v3.rdata'))
+save(Kong19_subset_dets_20kHzPG_15kHzPP, file=here('R/final_test/Rdata/KO19_subset_20kHzPG_15kHzPP_6hourly_v2.rdata'))
 ```
 
 # Process full datasets 1 hr
 
 This is processing datasets used with the latest version of PAMGuard 2.02.09
 
-These data include only clicks from Detectors 2 and 3
-Data were processed with a 1 kHz pre-filter highpass and 20 kHz trigger highpass filter
-Detector 2 clicks were only classified if there was >5 dB difference between 10-20 and 30-40 kHz bands
+These data include only clicks from Detectors 2 and 3.
+Data were processed with a 4-pole 1 kHz pre-filter highpass and 20 kHz trigger highpass filter.
+Detector 2 clicks were only classified if there was >5 dB difference between 10-20 and 30-40 kHz bands.
+
+A 4-pole 20 kHz high pass filter is applied below for click parameter calculations.
 
 ```{r process Fisher and Kong Oscar data}
 #### Fisher Islands -------------
@@ -152,13 +159,6 @@ save(kong_dets_20kHzPP_filter, file=here('R/Rdata/1hr/Kong_20kHzPG_20kHzPP_1hr_w
 
 ```
 
-```{r run filtering function}
-## remove events with little to no clicks in event
-Fish_filtered <- filter_noise_acoustic_study(Fisher19_dets_20kHzPG_15kHzPP)
-Kong_filtered <- filter_noise_acoustic_study(Kong19_dets_20kHzPG_15kHzPP)
-
-calculateAverageSpectra(Fisher19_dets_20kHzPG_15kHzPP, evNum='961')
-```
 
 ```{r check # events for each group}
 ## Fisher
