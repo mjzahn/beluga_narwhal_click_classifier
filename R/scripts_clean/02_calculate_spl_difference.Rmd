@@ -159,9 +159,9 @@ avgSpec_band_diff <- function(Acoustic_Study, evNum, clipping_level, filterfrom_
   band_40kHz_mean_dB <- 20*log10(mean(10^(band_40kHz_dB/20))) # 40 kHz TOL
   
   ## taking sum
-  band_16kHz_mean_dB <- 20*log10(mean(10^(band_16kHz_dB/20))) # 16 kHz TOL
-  band_25kHz_mean_dB <- 20*log10(mean(10^(band_25kHz_dB/20))) # 25 kHz TOL
-  band_40kHz_mean_dB <- 20*log10(mean(10^(band_40kHz_dB/20))) # 40 kHz TOL
+  band_16kHz_sum_dB <- 10*log10(sum((10^(band_16kHz_dB/20)^2))) # 16 kHz TOL
+  band_25kHz_sum_dB <- 10*log10(sum((10^(band_25kHz_dB/20)^2))) # 25 kHz TOL
+  band_40kHz_sum_dB <- 10*log10(sum((10^(band_40kHz_dB/20)^2))) # 40 kHz TOL
   
   ## calculate difference between freq bands
   ## mean
