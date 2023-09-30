@@ -1,5 +1,5 @@
 ---
-title: "SPL_difference_statistics"
+title: "TOL_ratios"
 author: "Marie Zahn"
 date: '2023-07-13'
 output: pdf_document
@@ -7,7 +7,7 @@ editor_options:
   chunk_output_type: console
 ---
 
-# Calculate SPL difference between target frequency bands
+# Calculate TOL ratios between target frequency bands
 
 ```{r load packages and data}
 ## load required packages
@@ -63,7 +63,7 @@ lower_freq_40kHz <- G**(-1/6)*freq_m # lower
 upper_freq_40kHz <- G**(1/6)*freq_m # upper
 ```
 
-Create function to extract TOL band SPL and take mean from average spectra
+Create function to extract TOL and take mean and sum from average spectra
 
 ```{r test calculations with one acoustic event}
 avSpec_all <- calculateAverageSpectra(kong_dets_0kHzPP_filter,wl=512,evNum="4094",
@@ -125,8 +125,7 @@ spl_diff_25to40_TOL_sum_dB <- band_40kHz_sum_dB - band_25kHz_sum_dB
 
 ```
 
-
-```{r avgSpec SPL calculations function}
+```{r avgSpec TOL calculations function}
 ## option to apply a highpass filter but here I do not apply one
 ## calculates avg spectrum then extracts SPL within frequency bands and calculates difference
 
@@ -165,12 +164,12 @@ avgSpec_band_diff <- function(Acoustic_Study, evNum, clipping_level, filterfrom_
   
   ## calculate difference between freq bands
   ## mean
-  spl_diff_16to25_TOL_mean_dB <- band_25kHz_mean_dB - band_16kHz_mean_dB
-  spl_diff_25to40_TOL_mean_dB <- band_40kHz_mean_dB - band_25kHz_mean_dB
+  TOL_16to25_mean_dB <- band_25kHz_mean_dB - band_16kHz_mean_dB
+  TOL_25to40_mean_dB <- band_40kHz_mean_dB - band_25kHz_mean_dB
   
   ## sum
-  spl_diff_16to25_TOL_sum_dB <- band_25kHz_sum_dB - band_16kHz_sum_dB
-  spl_diff_25to40_TOL_sum_dB <- band_40kHz_sum_dB - band_25kHz_sum_dB
+  TOL_16to25_sum_dB <- band_25kHz_sum_dB - band_16kHz_sum_dB
+  TOL_25to40_sum_dB <- band_40kHz_sum_dB - band_25kHz_sum_dB
   
   ## calculate how many unique clicks are in the dataset
   n_clicks <- nClicks(Acoustic_Study@events[[evNum]], distinct=TRUE) 
@@ -182,16 +181,16 @@ avgSpec_band_diff <- function(Acoustic_Study, evNum, clipping_level, filterfrom_
   species_id <- Acoustic_Study@events[[evNum]]@species[["id"]]
   
   ## build dataframe with SPL difference and click number data
-  df_SPL_diff <- data.frame(eventId=evNum,
-                            species=species_id,
-                            spl_diff_16to25_TOL_mean_dB=spl_diff_16to25_TOL_mean_dB, 
-                            spl_diff_25to40_TOL_mean_dB=spl_diff_25to40_TOL_mean_dB,
-                            spl_diff_16to25_TOL_sum_dB=spl_diff_16to25_TOL_sum_dB, 
-                            spl_diff_25to40_TOL_sum_dB=spl_diff_25to40_TOL_sum_dB,
-                            n_dets=n_clicks)
+  df_TOL_ratio <- data.frame(eventId=evNum,
+                             species=species_id,
+                             TOL_16to25_mean_dB=TOL_16to25_mean_dB, 
+                             TOL_25to40_mean_dB=TOL_25to40_mean_dB,
+                             TOL_16to25_sum_dB=TOL_16to25_sum_dB, 
+                             TOL_25to40_sum_dB=TOL_25to40_sum_dB,
+                             n_dets=n_clicks)
   
   ## join both dataframes
-  event_spec_df <- cbind(df_SPL_diff, df_avgSpec)
+  event_spec_df <- cbind(df_TOL_ratio, df_avgSpec)
   
   return(event_spec_df)
 }
@@ -201,11 +200,11 @@ avgSpec_band_diff <- function(Acoustic_Study, evNum, clipping_level, filterfrom_
 ```{r function to loop through events}
 # function to loop through each event and get SPL difference between bands
 
-calculate_SPL_diff <- function(Acoustic_Study, clipping_level, filterfrom_khz) {
+calculate_TOL_ratio <- function(Acoustic_Study, clipping_level, filterfrom_khz) {
   # create empty data frame to fill
   band_diff_df <- data.frame(eventId=c(),species=c(),
-                             spl_diff_16to25_TOL_mean_dB=c(),spl_diff_25to40_TOL_mean_dB=c(),
-                             spl_diff_16to25_TOL_sum_dB=c(),spl_diff_25to40_TOL_sum_dB=c(),
+                             TOL_16to25_mean_dB=c(),TOL_25to40_mean_dB=c(),
+                             TOL_16to25_sum_dB=c(),TOL_25to40_sum_dB=c(),
                              n_dets=c())
   
   for (i in 1:length(Acoustic_Study@events)) {
@@ -222,25 +221,25 @@ calculate_SPL_diff <- function(Acoustic_Study, clipping_level, filterfrom_khz) {
 
 ```{r run functions for model input}
 ## 2013 training data ---------------------------
-training_data_spl_df <- calculate_SPL_diff(monodontid_2013_data, clipping_level=206, filterfrom_khz=0)
+training_data_TOL_df <- calculate_TOL_ratio(monodontid_2013_data, clipping_level=206, filterfrom_khz=0)
 ## save output
-write.csv(training_data_spl_df, 
-          here('R/spreadsheets/SPL_difference/model_input/training_data_spl_diff.csv'),
+write.csv(training_data_TOL_df, 
+          here('R/spreadsheets/TOL_ratios/training_data_TOL_ratios.csv'),
           row.names = FALSE)
 
 ## testing data ---------------------------
 ## Fisher Islands
-testing_fish_data_spl_df <- calculate_SPL_diff(fish_dets_0kHzPP_filter, clipping_level=173, filterfrom_khz=0)
+testing_fish_data_TOL_df <- calculate_TOL_ratio(fish_dets_0kHzPP_filter, clipping_level=173, filterfrom_khz=0)
 ## save output
-write.csv(testing_fish_data_spl_df, 
-          here('R/spreadsheets/SPL_difference/model_input/testing_fish_data_spl_diff_0kHz_highpass.csv'),
+write.csv(testing_fish_data_TOL_df, 
+          here('R/spreadsheets/TOL_ratios/testing_fish_data_TOL_ratios_0kHz_highpass.csv'),
           row.names = FALSE)
 
 ## Kong Oscar
-testing_kong_data_spl_df <- calculate_SPL_diff(kong_dets_0kHzPP_filter, clipping_level=173, filterfrom_khz=0)
+testing_kong_data_TOL_df <- calculate_TOL_ratio(kong_dets_0kHzPP_filter, clipping_level=173, filterfrom_khz=0)
 ## save output
-write.csv(testing_kong_data_spl_df, 
-          here('R/spreadsheets/SPL_difference/model_input/testing_kong_data_spl_diff_0kHz_highpass.csv'),
+write.csv(testing_kong_data_TOL_df, 
+          here('R/spreadsheets/TOL_ratios/testing_kong_data_TOL_ratios_0kHz_highpass.csv'),
           row.names = FALSE)
 
 ```
