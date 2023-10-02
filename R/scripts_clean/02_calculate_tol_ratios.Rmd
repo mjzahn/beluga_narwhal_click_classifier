@@ -123,6 +123,47 @@ spl_diff_25to40_TOL_mean_dB <- band_40kHz_mean_dB - band_25kHz_mean_dB
 spl_diff_16to25_TOL_sum_dB <- band_25kHz_sum_dB - band_16kHz_sum_dB
 spl_diff_25to40_TOL_sum_dB <- band_40kHz_sum_dB - band_25kHz_sum_dB
 
+
+## test calculations =============
+library(gsignal)
+binData <- getBinaryData(fish_dets_0kHzPP_filter,
+                         UID = getClickData(fish_dets_0kHzPP_filter)$UID[5750])
+wave_all <- binData[[1]]$wave[, 1]
+
+# extract window around peak
+wl <- 512
+wave <- PAMpal:::clipAroundPeak(wave_all, wl)
+w <- hanning(length(wave))
+wave <- wave*w
+
+# Taiki's pampal code with correction that I then removed
+result <- Mod(fft(wave))^2
+result <- 2 * result[1:(wl%/%2)]
+result <- result / sum(w)^2
+spec1 <- 10*log10(result) + (10*log10(0.5^2)) # result with correction removed (subtract 6 dB)
+spec1 <- 10*log10(result) + (10*log10((sum(w)^2)/wl))
+
+# Marie's version without window correction
+result <- Mod(fft(wave))^2
+result <- 2 * result[1:(wl%/%2)]
+result <- result / wl
+spec2 <- 10*log10(result)
+
+# Michael's version
+result <- (Mod(fft(wave))^2) / wl
+result <- 2 * result[1:(wl%/%2)]
+spec3 <- 10*log10(result)
+
+# calculate and plot spectrum
+freq = seq(0,72,by=72/256)[1:256]
+
+plot(freq,spec1, type='l',
+     ylim=c(-130,-50),
+     ylab="SPL (dB re 1 uPa/bin width)",
+     xlab="Frequency (kHz)")
+lines(freq,spec2, type='l',col='green')
+lines(freq,spec3, type='l',col='red')
+
 ```
 
 ```{r avgSpec TOL calculations function}
@@ -301,7 +342,7 @@ write.csv(training_data_noise_df,
 ## testing data ---------------------------
 ## Fisher Islands
 ## select only whale events
-fish_dets_whale_filter <- fish_dets_0kHzPP_filter %>% filter(species!='NOISE')
+fish_dets_whale_filter <- fish_dets_0kHzPP_filter %>% dplyr::filter(species!='NOISE')
 testing_fish_data_noise_df <- get_noise_spec(fish_dets_whale_filter, clipping_level=173, wl=256)
 ## save output
 write.csv(testing_fish_data_noise_df, 
@@ -310,7 +351,7 @@ write.csv(testing_fish_data_noise_df,
 
 ## Kong Oscar
 ## select only whale events
-kong_dets_whale_filter <- kong_dets_0kHzPP_filter %>% filter(species!='NOISE')
+kong_dets_whale_filter <- kong_dets_0kHzPP_filter %>% dplyr::filter(species!='NOISE')
 testing_kong_data_noise_df <- get_noise_spec(kong_dets_whale_filter, clipping_level=173, wl=256)
 ## save output
 write.csv(testing_kong_data_noise_df, 
