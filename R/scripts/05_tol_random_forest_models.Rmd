@@ -1,0 +1,362 @@
+---
+title: "Random Forest"
+output: pdf_document
+date: "2023-07-25"
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r load packages}
+## load required packages
+library(here)
+library(ggplot2)
+library(PAMpal)
+library(dplyr)
+library(tidyr)
+library(randomForest)
+library(rfPermute)
+```
+
+# Load Data
+
+```{r load TOL data}
+fish_test_data <- read.csv(here("R/spreadsheets/TOL_ratios/testing_fish_data_TOL_ratios_0kHz_highpass.csv"))
+kong_test_data <- read.csv(here("R/spreadsheets/TOL_ratios/testing_kong_data_TOL_ratios_0kHz_highpass.csv"))
+
+## select columns we need
+fish_test_data_select <- fish_test_data %>% 
+  select(c(species,eventId,TOL_16to25_mean_dB,TOL_25to40_mean_dB,
+           TOL_16to25_sum_dB,TOL_25to40_sum_dB)) %>%
+  filter(species!='NOISE')
+kong_test_data_select <- kong_test_data %>% 
+  select(c(species,eventId,TOL_16to25_mean_dB,TOL_25to40_mean_dB,
+           TOL_16to25_sum_dB,TOL_25to40_sum_dB)) %>% 
+  filter(species!='NOISE')
+
+TOL_df_all <- rbind(fish_test_data_select,kong_test_data_select)
+```
+
+```{r confusionMatrix func}
+## modified code from rfPermute confusionMatrix func
+## function to calculate prediction interval from output of predict() function
+confusionMatrix_predict <- function(predict_output, TOL_df) {
+  ## make confusion matrix
+  cm <- table(TOL_df[,1], predict_output)
+  
+  # binomial test
+  conf.level = 0.95
+  threshold = NULL
+  
+  # Confusion matrix and counts
+  # cm <- .confMat(rf)
+  class.n <- rowSums(cm)
+  all.n <- c(class.n, Overall = sum(class.n))
+  total.n <- sum(class.n)
+  correct.n <- diag(cm)
+  correct.n <- c(correct.n, Overall = sum(correct.n))
+    
+  # Confidence intervals
+  ci <- t(sapply(
+    mapply(
+      stats::binom.test, 
+      x = correct.n, 
+      n = all.n, 
+      p = correct.n / all.n, 
+      conf.level = conf.level,
+      SIMPLIFY = FALSE
+    ),
+    function(x) x$conf.int * 100
+  ))
+  colnames(ci) <- paste(c("LCI", "UCI"), conf.level, sep = "_")
+  
+  # Probability threshold
+  prob.gt <- NULL
+  if(!is.null(threshold)) {
+    prob.gt <- lapply(threshold, function(p) {
+      stats::pbinom(correct.n, total.n, p)
+    })
+    prob.gt <- do.call(cbind, prob.gt)
+    colnames(prob.gt) <- paste0("Pr.gt_", threshold)
+  }
+  
+  cm <- rbind(cm, Overall = rep(NA, ncol(cm)))
+  pct.correct <- (correct.n / all.n) * 100
+  cbind(
+    cm, 
+    pct.correct = pct.correct[rownames(cm)], 
+    ci[rownames(cm), , drop = FALSE],
+    prob.gt
+  )
+}
+
+```
+
+```{r RF sensitivity analysis function}
+## run the RF model over all combinations of sampsize
+
+RF_sampsize_sensitivity_tol <- function(TOL_df) {
+  ## make master df with all possible combinations of sampsize
+  sampsize_max <- length(TOL_df$species[TOL_df$species=='X045'])-1
+  sampsize <- c(2:sampsize_max)
+  
+  ## loop over all possible combinations
+  master_df <- as.data.frame(matrix(nrow = length(sampsize), ncol = 1))
+  yy <- TOL_df$species
+  
+  for (i in 1:length(sampsize)){
+    ranfor <- randomForest(species ~ TOL_16to25_sum_dB + TOL_25to40_sum_dB,
+                           data = TOL_df, 
+                           ntree = 10000, 
+                           importance = TRUE,
+                           replace = FALSE,
+                           sampsize = rep(sampsize[i],2),
+                           proximity = TRUE)
+    
+    ## calculate accuracy
+    rfpred <- predict(ranfor)
+    accuracy <- caret::confusionMatrix(rfpred, yy)
+    master_df[i,1] <- accuracy$overall[1]
+    colnames(master_df) <- "Accuracy"
+  }
+  
+  ## combine dfs
+  sensitivity <- cbind(sampsize, master_df)
+  print(sensitivity)
+  
+  ## calculate % range of model output
+  max(sensitivity$Accuracy) - min(sensitivity$Accuracy)
+}
+
+```
+
+# Build random forest models for SoundTrap data
+
+```{r randomForest for soundtrap data}
+## make sure species is a factor
+TOL_df_all$species <- as.factor(TOL_df_all$species)
+
+## Run random forest model with TOL frequency bands
+## calculate sampsize as half the sample size of the smaller species class (=beluga)
+rf_sampsize <- ceiling(length(TOL_df_all$species[TOL_df_all$species=='X045'])/2)
+
+ranfor_soundtrap_TOL <- randomForest(species ~ TOL_16to25_sum_dB + TOL_25to40_sum_dB,
+                                         data = TOL_df_all, 
+                                         ntree = 10000, 
+                                         importance = TRUE,
+                                         replace = FALSE,
+                                         sampsize = c(rf_sampsize,rf_sampsize),
+                                         proximity = TRUE)
+
+ranfor_soundtrap_TOL
+confusionMatrix(ranfor_soundtrap_TOL)
+
+## calculate accuracy and sensitivity to sampsize parameter
+RF_sampsize_sensitivity_tol(TOL_df_all)
+# accuracy varies by 0%
+
+## other model diagnostics
+plotTrace(ranfor_soundtrap_TOL)
+plotVotes(ranfor_soundtrap_TOL)
+varImpPlot(ranfor_soundtrap_TOL)
+importance(ranfor_soundtrap_TOL)
+casePredictions(ranfor_soundtrap_TOL)
+
+## look at one narwhal event that was misclassified
+predictions <- casePredictions(ranfor_soundtrap_TOL)
+predictions[predictions$is.correct==FALSE,]
+TOL_df_all[predictions$is.correct==FALSE,] # event 757
+
+```
+
+# RF models for Fisher and Kong
+
+```{r run separate RF models for Fisher and Kong}
+## make sure species is a factor
+fish_test_data_select$species <- as.factor(fish_test_data_select$species)
+kong_test_data_select$species <- as.factor(kong_test_data_select$species)
+
+## calculate sampsize as half the sample size of the smaller species class (=beluga)
+rf_sampsize_fish <- ceiling(length(fish_test_data_select$species[fish_test_data_select$species=='X045'])/2)
+rf_sampsize_kong <- ceiling(length(kong_test_data_select$species[kong_test_data_select$species=='X045'])/2)
+
+## Fisher Islands 
+
+## run random forest model - TOL
+ranfor_fish_tol <- randomForest(species ~ TOL_16to25_sum_dB + TOL_25to40_sum_dB, 
+                       data = fish_test_data_select, 
+                       ntree = 10000, 
+                       importance = TRUE,
+                       replace = FALSE,
+                       sampsize = c(rf_sampsize_fish,rf_sampsize_fish), 
+                       proximity = TRUE)
+
+ranfor_fish_tol
+confusionMatrix(ranfor_fish_tol)
+
+## calculate accuracy and sensitivity to sampsize parameter
+RF_sampsize_sensitivity_tol(fish_test_data_select)
+# accuracy varies by 0%
+
+## Kong Oscar 
+
+## run random forest model - TOL
+ranfor_kong_tol <- randomForest(species ~ TOL_16to25_sum_dB + TOL_25to40_sum_dB, 
+                       data = kong_test_data_select, 
+                       ntree = 10000, 
+                       importance = TRUE,
+                       replace = FALSE,
+                       sampsize = c(rf_sampsize_kong,rf_sampsize_kong), 
+                       proximity = TRUE)
+
+ranfor_kong_tol
+confusionMatrix(ranfor_kong_tol)
+
+## calculate accuracy and sensitivity to sampsize parameter
+RF_sampsize_sensitivity_tol(kong_test_data_select)
+# accuracy varies by 0%
+
+```
+
+```{r Use one dataset to predict the other}
+## with TOL bands
+## fisher predicts kong
+y_pred_kong_tol <- predict(ranfor_fish_tol, newdata=kong_test_data_select[,5:6])
+confusionMatrix_predict(y_pred_kong_tol,kong_test_data_select)
+## kong predicts fisher
+y_pred_fish_tol <- predict(ranfor_kong_tol, newdata=fish_test_data_select[,5:6])
+confusionMatrix_predict(y_pred_fish_tol,fish_test_data_select)
+```
+
+# Asses variable importance and percent votes
+
+```{r plotAssignments from rfPermute}
+# forked code from Eric Archer's gtihub swfscMisc
+plotAssignments <- function(
+  probs, orig, type = NULL, ylab = NULL, freq.sep.line = TRUE, plot = TRUE
+) {
+  freq <- table(orig)
+  type <- if(is.null(type)) {
+    if(all(freq <= 30)) "bar" else "area"
+  } else {
+    match.arg(type, c("bar", "area"))
+  }
+  
+  if(is.null(colnames(probs))) {
+    colnames(probs) <- paste("Group", 1:ncol(probs), sep = ".")
+  }
+  
+  df <- data.frame(orig = orig, probs, check.names = FALSE)
+  i <- do.call(order, c(as.list(df), list(decreasing = TRUE)))
+  df <- df[i, ] %>% 
+    dplyr::mutate(id = 1:dplyr::n()) %>% 
+    tidyr::pivot_longer(-c("id", "orig"), names_to = "pred", values_to = "prob")
+  if(!is.null(freq.sep.line)) {
+    levels(df$orig) <- paste0(
+      names(freq), ifelse(freq.sep.line, "\n", " "), "(n = ", freq, ")"
+    )
+  }
+  
+  if(is.null(ylab)) ylab <- "Assignment Probability"
+  
+  p <- ggplot2::ggplot(df, ggplot2::aes_string("id", "prob")) +
+    switch(
+      type,
+      area = ggplot2::geom_area(
+        ggplot2::aes_string(fill = "pred"), 
+        stat = "identity"
+      ),
+      bar = ggplot2::geom_bar(
+        ggplot2::aes_string(fill = "pred"), 
+        stat = "identity"
+      )
+    ) +
+    ggplot2::scale_fill_discrete(
+      guide = ggplot2::guide_legend(title = "Predicted")
+    ) +
+    ggplot2::scale_x_continuous(expand = c(0, 0)) +
+    ggplot2::scale_y_continuous(expand = c(0, 0)) +
+    ggplot2::facet_wrap(~ orig, scales = "free_x") +
+    ggplot2::ylab(ylab) +
+    ggplot2::theme(
+      legend.position = "top",
+      text = ggplot2::element_text(size = 14),
+      axis.text.x = ggplot2::element_blank(),
+      axis.title.x = ggplot2::element_blank(),
+      axis.ticks.x = ggplot2::element_blank(),
+      plot.title = ggplot2::element_text(hjust = 0),
+      panel.grid = ggplot2::element_blank(),
+      panel.background = ggplot2::element_blank()
+    )
+  if(plot) print(p)
+  invisible(p)
+}
+```
+
+```{r importance scores and plotVotes}
+## look at which variable is most important for species classification
+
+# model development
+importance(ranfor_soundtrap_TOL)
+importance(ranfor_fish_tol)
+importance(ranfor_kong_tol)
+
+## plot Votes to assess overall model confidence in predictions
+# model development
+plotVotes(ranfor_soundtrap_TOL)
+plotVotes(ranfor_fish_tol)
+plotVotes(ranfor_kong_tol)
+
+# model predictions
+y_pred_kong_tol <- predict(ranfor_fish_tol, newdata=kong_test_data_select[,5:6], type='prob')
+y_pred_fish_tol <- predict(ranfor_kong_tol, newdata=fish_test_data_select[,5:6], type='prob')
+
+# plotVotes of model predictions
+plotAssignments((y_pred_kong_tol/rowSums(y_pred_kong_tol))*100,
+                kong_test_data_select$species,ylab = "Percent of votes")
+
+plotAssignments((y_pred_fish_tol/rowSums(y_pred_fish_tol))*100,
+                fish_test_data_select$species,ylab = "Percent of votes")
+
+```
+
+```{r export example plot votes fig for supplement}
+# first change species codes to species names
+levels(TOL_reson_soundtrap$species) <- c("Beluga","Narwhal")
+
+## run random forest model with TOL frequency bands
+ranfor_reson_soundtrap_tol <- randomForest(species ~ TOL_16to25_sum_dB + TOL_25to40_sum_dB, 
+                       data = TOL_reson_soundtrap, 
+                       ntree = 10000, 
+                       importance = TRUE,
+                       replace = FALSE,
+                       sampsize = c(rf_sampsize,rf_sampsize), 
+                       proximity = TRUE)
+
+plotVotes_ex <- plotVotes(ranfor_reson_soundtrap_tol)
+ggsave(here("R/figures/plotVotes_example.png"), dpi=300)
+
+# PlotVotes example of poor predictions
+# soundtrap to predict reson
+levels(train_TOL_data$species) <- c("Beluga","Narwhal")
+colnames(y_pred_soundtrap_tol) <- c("Beluga","Narwhal")
+
+plotAssignments((y_pred_soundtrap_tol/rowSums(y_pred_soundtrap_tol))*100,
+                train_TOL_data$species,ylab = "Percent of votes")
+
+ggsave(here("R/figures/plotVotes_ST-pred-reson.png"), dpi=300)
+
+# reson predicts soundtrap
+levels(TOL_df_all$species) <- c("Beluga","Narwhal")
+colnames(y_pred_reson_tol) <- c("Beluga","Narwhal")
+
+plotAssignments((y_pred_reson_tol/rowSums(y_pred_reson_tol))*100,
+                TOL_df_all$species,ylab = "Percent of votes")
+
+ggsave(here("R/figures/plotVotes_reson-pred-ST.png"), dpi=300)
+
+```
+

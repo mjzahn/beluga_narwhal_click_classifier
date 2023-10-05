@@ -43,28 +43,23 @@ save(Monodontid_2013_data_ch1, file='Rdata/Monodontid_2013_data_ch1.rdata')
 
 ```
 
-Add SPL diff event level data to AcousticStudy objects
+Add TOL event level data to AcousticStudy objects
 
-```{r add SPL - training data}
+```{r add TOL - training data}
 ## load data
 load(here("R/Rdata/Monodontid_2013_data_ch1.rdata"))
 
-# load csvs with SPL data
-train_spl_df <- read.csv(here('R/spreadsheets/SPL_difference/model_input/training_data_spl_diff.csv'))
-
-train_spl_df_select <- train_spl_df %>% select(c(eventId,spl_diff_16to23_dB,spl_diff_23to46_dB))
-train_spl_df_select_tol <- train_spl_df %>% select(c(eventId,spl_diff_16to25_TOL_dB,spl_diff_25to40_TOL_dB))
+# load csvs with TOL data
+train_TOL_df <- read.csv(here('R/spreadsheets/TOL_ratios/training_data_TOL_ratios.csv'))
+train_TOL_df_select <- train_TOL_df %>% select(c(eventId,TOL_16to25_sum_dB,TOL_25to40_sum_dB))
 
 # addMeasures function added in PAMpal v0.20.2
-# Only use first 3 columns of splDf because we dont want "n_dets" for modeling
 # Only requirement for "measures" is an "eventId" column matching event names in our data
-train_data <- addMeasures(Monodontid_2013_data_ch1, measures = train_spl_df_select)
-train_data_tol <- addMeasures(Monodontid_2013_data_ch1, measures = train_spl_df_select_tol)
+train_data_tol <- addMeasures(Monodontid_2013_data_ch1, measures = train_TOL_df_select)
 # this will show what we've added for each event
-getMeasures(train_data)
+getMeasures(train_data_tol)
 
-# save updated AcousticStudy object with SPL diff
-save(train_data, file=here("R/Rdata/train_data.Rdata"))
+# save updated AcousticStudy object with TOL diff
 save(train_data_tol, file=here("R/Rdata/train_data_tol.Rdata"))
 
 # these will automatically get exported now with export_banter
@@ -75,57 +70,49 @@ train_banterData$events
 
 ```
 
-```{r add SPL - Fisher data}
+```{r add TOL - Fisher data}
 ## load data - 20 kHz highpass version
 load(here("R/Rdata/1hr/Fish_20kHzPG_20kHzPP_1hr_wavTime_filtered_labeled.rdata"))
 
-# load csvs with SPL data
-fish_spl_0kHz_df <- read.csv(here('R/spreadsheets/SPL_difference/model_input/testing_fish_data_spl_diff_0kHz_highpass.csv'))
+# load csvs with TOL data
+fish_TOL_df <- read.csv(here('R/spreadsheets/TOL_ratios/testing_fish_data_TOL_ratios_0kHz_highpass.csv'))
 
-fish_spl_0kHz_df_select <- fish_spl_0kHz_df %>% select(c(eventId,spl_diff_16to23_dB,spl_diff_23to46_dB))
-fish_spl_0kHz_df_select_tol <- fish_spl_0kHz_df %>% select(c(eventId,spl_diff_16to25_TOL_dB,spl_diff_25to40_TOL_dB))
+fish_TOL_df_select <- fish_TOL_df %>% select(c(eventId,TOL_16to25_sum_dB,TOL_25to40_sum_dB))
 
 # addMeasures function added in PAMpal v0.20.2
-# Only use first 3 columns of splDf because we dont want "n_dets" for modeling
 # Only requirement for "measures" is an "eventId" column matching event names in our data
-fish_test_data <- addMeasures(fish_dets_20kHzPP_filter, measures = fish_spl_0kHz_df_select)
-fish_test_data_tol <- addMeasures(fish_dets_20kHzPP_filter, measures = fish_spl_0kHz_df_select_tol)
+fish_test_data_tol <- addMeasures(fish_dets_20kHzPP_filter, measures = fish_TOL_df_select)
 
 # this will show what we've added for each event
-getMeasures(fish_test_data)
+getMeasures(fish_test_data_tol)
 
-# save updated AcousticStudy object with SPL diff
-save(fish_test_data, file=here("R/Rdata/test_data_fish_0kHz-spl.Rdata"))
-save(fish_test_data_tol, file=here("R/Rdata/test_data_fish_0kHz-spl_tol.Rdata"))
+# save updated AcousticStudy object with TOL diff
+save(fish_test_data_tol, file=here("R/Rdata/test_data_fish_TOL.Rdata"))
 ```
 
-```{r add SPL - Kong Oscar data}
+```{r add TOL - Kong Oscar data}
 ## load data
 load(here("R/Rdata/1hr/Kong_20kHzPG_20kHzPP_1hr_wavTime_filtered_labeled.rdata"))
 
-# load csvs with SPL data
-kong_spl_0kHz_df <- read.csv(here('R/spreadsheets/SPL_difference/model_input/testing_kong_data_spl_diff_0kHz_highpass.csv'))
+# load csvs with TOL data
+kong_TOL_df <- read.csv(here('R/spreadsheets/TOL_ratios/testing_kong_data_TOL_ratios_0kHz_highpass.csv'))
 
-kong_spl_0kHz_df_select <- kong_spl_0kHz_df %>% select(c(eventId,spl_diff_16to23_dB,spl_diff_23to46_dB))
-kong_spl_0kHz_df_select_tol <- kong_spl_0kHz_df %>% select(c(eventId,spl_diff_16to25_TOL_dB,spl_diff_25to40_TOL_dB))
+kong_TOL_df_select_tol <- kong_TOL_df %>% select(c(eventId,TOL_16to25_sum_dB,TOL_25to40_sum_dB))
 
 # addMeasures function added in PAMpal v0.20.2
-# Only use first 3 columns of splDf because we dont want "n_dets" for modeling
 # Only requirement for "measures" is an "eventId" column matching event names in our data
-kong_test_data <- addMeasures(kong_dets_20kHzPP_filter, measures = kong_spl_0kHz_df_select)
-kong_test_data_tol <- addMeasures(kong_dets_20kHzPP_filter, measures = kong_spl_0kHz_df_select_tol)
+kong_test_data_tol <- addMeasures(kong_dets_20kHzPP_filter, measures = kong_TOL_df_select_tol)
 
 # this will show what we've added for each event
-getMeasures(kong_test_data)
+getMeasures(kong_test_data_tol)
 
-# save updated AcousticStudy object with SPL diff
-save(kong_test_data, file=here("R/Rdata/test_data_kong_0kHz-spl.Rdata"))
-save(kong_test_data_tol, file=here("R/Rdata/test_data_kong_0kHz-spl_tol.Rdata"))
+# save updated AcousticStudy object with TOL diff
+save(kong_test_data_tol, file=here("R/Rdata/test_data_kong_TOL.Rdata"))
 ```
 
 Train banter model with 2013 data
 
-```{r rerun Banter training model - Only Det 2 and 3 - no spl vars}
+```{r rerun Banter training model - Only Det 2 and 3 - no TOL vars}
 ## export banter model
 load(here("R/Rdata/Monodontid_2013_data_ch1.rdata"))
 
@@ -154,14 +141,14 @@ plotDetectorTrace(bant.mdl)
 bant.mdl <- runBanterModel(bant.mdl, ntree = 10000, sampsize = 9)
 
 ## look at summary for Event model
-summary(bant.mdl_spl)
+summary(bant.mdl_TOL)
 
 ## get RF data from banter model
-event.rf <- getBanterModel(bant.mdl_spl, "event")
+event.rf <- getBanterModel(bant.mdl_TOL, "event")
 
 ## OTHER THINGS TO LOOK INTO: -------------------------------
 ## get RF data for specific detector - example of Det 5:
-(event.rf.Det4 <- getBanterModel(bant.mdl_spl, "Click_Detector_4"))
+(event.rf.Det4 <- getBanterModel(bant.mdl_TOL, "Click_Detector_4"))
 
 ## examine model stability
 rfPermute::plotTrace(event.rf)
@@ -201,13 +188,13 @@ summary(bant.mdl)
 plotDetectorTrace(bant.mdl)
 
 ## run Event model------------------------------------------------------------
-bant.mdl_spl <- runBanterModel(bant.mdl, ntree = 10000, sampsize = 9)
+bant.mdl_TOL <- runBanterModel(bant.mdl, ntree = 10000, sampsize = 9)
 
 ## look at summary for Event model
-summary(bant.mdl_spl)
+summary(bant.mdl_TOL)
 
 ## get RF data from banter model
-event.rf <- getBanterModel(bant.mdl_spl, "event")
+event.rf <- getBanterModel(bant.mdl_TOL, "event")
 
 ## SUMMARIES
 rfPermute::plotVotes(event.rf)
@@ -216,21 +203,21 @@ rfPermute::casePredictions(event.rf)
 
 ## OTHER THINGS TO LOOK INTO: -------------------------------
 ## get RF data for specific detector - example of Det 5:
-(event.rf.Det4 <- getBanterModel(bant.mdl_spl, "Click_Detector_4"))
+(event.rf.Det4 <- getBanterModel(bant.mdl_TOL, "Click_Detector_4"))
 
 ## examine model stability
 rfPermute::plotTrace(event.rf)
 rfPermute::plotInbag(event.rf)
 
 ## get predictor names for event level RF model
-colnames(bant.mdl_spl@model.data)
+colnames(bant.mdl_TOL@model.data)
 
 ## save model
-save(bant.mdl_spl, file=here("R/Rdata/train_bant_mdl_spl.Rdata"))
+save(bant.mdl_TOL, file=here("R/Rdata/train_bant_mdl_TOL.Rdata"))
 
 ```
 
-```{r rerun Banter training model - Only Det 2 and 3}
+```{r rerun Banter training model - Only Det 2 and 3 - with TOL vars}
 ## export banter model
 load(here("R/Rdata/train_data_tol.Rdata"))
 
@@ -256,10 +243,10 @@ summary(bant.mdl)
 plotDetectorTrace(bant.mdl)
 
 ## run Event model------------------------------------------------------------
-bant.mdl_spl_tol <- runBanterModel(bant.mdl, ntree = 10000, sampsize = 9)
+bant.mdl_TOL <- runBanterModel(bant.mdl, ntree = 10000, sampsize = 9)
 
 ## look at summary for Event model
-summary(bant.mdl_spl_tol)
+summary(bant.mdl_TOL)
 
 ## get RF data from banter model
 event.rf <- getBanterModel(bant.mdl, "event")
@@ -270,7 +257,7 @@ rfPermute::plotProximity(event.rf)
 rfPermute::casePredictions(event.rf)
 
 ## save model
-save(bant.mdl_spl_tol, file=here("R/Rdata/train_bant_mdl_spl_tol.Rdata"))
+save(bant.mdl_TOL, file=here("R/Rdata/train_bant_mdl_TOL.Rdata"))
 
 ```
 

@@ -85,10 +85,10 @@ confusionMatrix_predict <- function(predict_output) {
 
 ```
 
-## Test banter model with SoundTrap data - without SPL vars
+## Test banter model with SoundTrap data - without TOL vars
 
-```{r load data without spl}
-## base model without SPL variables
+```{r load data without TOL}
+## base model without TOL variables
 load(file=here('R/Rdata/train_bant_mdl.rdata'))
 
 ## load testing data
@@ -97,7 +97,7 @@ load(here("R/Rdata/1hr/Fish_20kHzPG_20kHzPP_1hr_wavTime_filtered_labeled.rdata")
 load(here("R/Rdata/1hr/Kong_20kHzPG_20kHzPP_1hr_wavTime_filtered_labeled.rdata"))
 ```
 
-```{r test whale model without SPL vars}
+```{r test whale model without TOL vars}
 ## remove noise events
 fish_whale_data <- fish_dets_20kHzPP_filter %>% filter(species!='NOISE')
 kong_whale_data <- kong_dets_20kHzPP_filter %>% filter(species!='NOISE')
@@ -105,10 +105,10 @@ kong_whale_data <- kong_dets_20kHzPP_filter %>% filter(species!='NOISE')
 ## Export data from AcousticStudy into format required to run a BANTER model
 ## Fisher islands
 banter_fish <- export_banter(fish_whale_data,
-                             dropVars = c('noiseLevel', 'dBPP', 'peakTime', 'spl_16to23_dB', 'spl_23to46_dB'))
+                             dropVars = c('noiseLevel', 'dBPP', 'peakTime'))
 ## Kong Oscar
 banter_kong <- export_banter(kong_whale_data,
-                             dropVars = c('noiseLevel', 'dBPP', 'peakTime', 'spl_16to23_dB', 'spl_23to46_dB'))
+                             dropVars = c('noiseLevel', 'dBPP', 'peakTime'))
 
 # filter out clicks that were not detected in click detector 2
 banter_fish$detectors$Click_Detector_2<-filter(banter_fish$detectors$Click_Detector_2, peak>20 & peak<50)
@@ -142,85 +142,85 @@ write.csv(score_kong_whale$predict.df, here('R/Kong_scores_whale.csv'))
 write.csv(score_fish_whale$predict.df, here('R/Fish_scores_whale.csv'))
 ```
 
-## Test banter model with SoundTrap data - with SPL vars calculated with specific frequency bands
+## Test banter model with SoundTrap data - with TOL vars calculated with specific frequency bands
 
 ```{r load data}
-## load banter model with SPL variables from specific freq bands
-load(file=here('R/Rdata/train_bant_mdl_spl.rdata'))
+## load banter model with TOL variables from specific freq bands
+load(file=here('R/Rdata/train_bant_mdl_TOL.rdata'))
 
-## load testing data that includes SPL diff calculated with 0 kHz highpass filter
-load(here("R/Rdata/test_data_fish_0kHz-spl.Rdata"))
-load(here("R/Rdata/test_data_kong_0kHz-spl.Rdata"))
+## load testing data that includes TOL diff calculated with 0 kHz highpass filter
+load(here("R/Rdata/test_data_fish_0kHz-TOL.Rdata"))
+load(here("R/Rdata/test_data_kong_0kHz-TOL.Rdata"))
 
 ```
 
-```{r test whale model with SPL vars}
+```{r test whale model with TOL vars}
 ## remove noise events
 fish_whale_data <- fish_test_data %>% filter(species!='NOISE')
 kong_whale_data <- kong_test_data %>% filter(species!='NOISE')
 
 ## Export data from AcousticStudy into format required to run a BANTER model
 ## Fisher islands
-banter_fish_spl <- export_banter(fish_whale_data,
+banter_fish_TOL <- export_banter(fish_whale_data,
                              dropVars = c('noiseLevel', 'dBPP', 'peakTime'))
 ## Kong Oscar
-banter_kong_spl <- export_banter(kong_whale_data,
+banter_kong_TOL <- export_banter(kong_whale_data,
                              dropVars = c('noiseLevel', 'dBPP', 'peakTime'))
 
 # filter out clicks that were not detected in click detector 2
-banter_fish_spl$detectors$Click_Detector_2<-filter(banter_fish_spl$detectors$Click_Detector_2, peak>20 & peak<50)
-banter_fish_spl$detectors$Click_Detector_3<-filter(banter_fish_spl$detectors$Click_Detector_3, peak>50 & peak<70)
+banter_fish_TOL$detectors$Click_Detector_2<-filter(banter_fish_TOL$detectors$Click_Detector_2, peak>20 & peak<50)
+banter_fish_TOL$detectors$Click_Detector_3<-filter(banter_fish_TOL$detectors$Click_Detector_3, peak>50 & peak<70)
 
-banter_kong_spl$detectors$Click_Detector_2<-filter(banter_kong_spl$detectors$Click_Detector_2, peak>20 & peak<50)
-banter_kong_spl$detectors$Click_Detector_3<-filter(banter_kong_spl$detectors$Click_Detector_3, peak>50 & peak<70)
+banter_kong_TOL$detectors$Click_Detector_2<-filter(banter_kong_TOL$detectors$Click_Detector_2, peak>20 & peak<50)
+banter_kong_TOL$detectors$Click_Detector_3<-filter(banter_kong_TOL$detectors$Click_Detector_3, peak>50 & peak<70)
 
 # predict species with novel data
 # score_Fisher <- predict(bant.mdl_new, banter_Fisher)
-score_fish_whale_spl <- predict(bant.mdl_spl, banter_fish_spl)
-confusionMatrix_predict(score_fish_whale_spl)
+score_fish_whale_TOL <- predict(bant.mdl_TOL, banter_fish_TOL)
+confusionMatrix_predict(score_fish_whale_TOL)
 
-score_kong_whale_spl <- predict(bant.mdl_spl, banter_kong_spl)
-confusionMatrix_predict(score_kong_whale_spl)
+score_kong_whale_TOL <- predict(bant.mdl_TOL, banter_kong_TOL)
+confusionMatrix_predict(score_kong_whale_TOL)
 ```
 
-## Test banter model with SoundTrap data - with SPL vars calculated with TOL bands
+## Test banter model with SoundTrap data - with TOL vars
 
 ```{r load data}
-## load banter model with SPL variables from TOL bands
-load(file=here('R/Rdata/train_bant_mdl_spl_tol.rdata'))
+## load banter model with TOL variables from TOL bands
+load(file=here('R/Rdata/train_bant_mdl_TOL.rdata'))
 
-## load testing data that includes SPL diff calculated with 0 kHz highpass filter
-load(here("R/Rdata/test_data_fish_0kHz-spl_tol.Rdata"))
-load(here("R/Rdata/test_data_kong_0kHz-spl_tol.Rdata"))
+## load testing data that includes TOL diff calculated with 0 kHz highpass filter
+load(here("R/Rdata/test_data_fish_0kHz-TOL.Rdata"))
+load(here("R/Rdata/test_data_kong_0kHz-TOL.Rdata"))
 
 ```
 
-```{r test whale model with SPL vars}
+```{r test whale model with TOL vars}
 ## remove noise events
 fish_whale_data <- fish_test_data_tol %>% filter(species!='NOISE')
 kong_whale_data <- kong_test_data_tol %>% filter(species!='NOISE')
 
 ## Export data from AcousticStudy into format required to run a BANTER model
 ## Fisher islands
-banter_fish_spl <- export_banter(fish_whale_data,
+banter_fish_TOL <- export_banter(fish_whale_data,
                              dropVars = c('noiseLevel', 'dBPP', 'peakTime'))
 ## Kong Oscar
-banter_kong_spl <- export_banter(kong_whale_data,
+banter_kong_TOL <- export_banter(kong_whale_data,
                              dropVars = c('noiseLevel', 'dBPP', 'peakTime'))
 
 # filter out clicks that were not detected in click detector 2
-banter_fish_spl$detectors$Click_Detector_2<-filter(banter_fish_spl$detectors$Click_Detector_2, peak>20 & peak<50)
-banter_fish_spl$detectors$Click_Detector_3<-filter(banter_fish_spl$detectors$Click_Detector_3, peak>50 & peak<70)
+banter_fish_TOL$detectors$Click_Detector_2<-filter(banter_fish_TOL$detectors$Click_Detector_2, peak>20 & peak<50)
+banter_fish_TOL$detectors$Click_Detector_3<-filter(banter_fish_TOL$detectors$Click_Detector_3, peak>50 & peak<70)
 
-banter_kong_spl$detectors$Click_Detector_2<-filter(banter_kong_spl$detectors$Click_Detector_2, peak>20 & peak<50)
-banter_kong_spl$detectors$Click_Detector_3<-filter(banter_kong_spl$detectors$Click_Detector_3, peak>50 & peak<70)
+banter_kong_TOL$detectors$Click_Detector_2<-filter(banter_kong_TOL$detectors$Click_Detector_2, peak>20 & peak<50)
+banter_kong_TOL$detectors$Click_Detector_3<-filter(banter_kong_TOL$detectors$Click_Detector_3, peak>50 & peak<70)
 
 # predict species with new data
-score_fish_whale_spl_tol <- predict(bant.mdl_spl_tol, banter_fish_spl)
-confusionMatrix_predict(score_fish_whale_spl_tol)
+score_fish_whale_TOL <- predict(bant.mdl_TOL, banter_fish_TOL)
+confusionMatrix_predict(score_fish_whale_TOL)
 
-score_kong_whale_spl_tol <- predict(bant.mdl_spl_tol, banter_kong_spl)
-confusionMatrix_predict(score_kong_whale_spl_tol)
+score_kong_whale_TOL <- predict(bant.mdl_TOL, banter_kong_TOL)
+confusionMatrix_predict(score_kong_whale_TOL)
 
 ```
 
@@ -292,7 +292,7 @@ plotAssignments <- function(
 
 ```{r plotVotes}
 # plotVotes of model predictions
-# base model without SPL measures
+# base model without TOL measures
 # BANTER predicts fisher
 plotAssignments((score_fish_whale$predict.df[,3:4]/rowSums(score_fish_whale$predict.df[,3:4]))*100,
                 score_fish_whale$predict.df$original,ylab = "Percent of votes")
@@ -303,12 +303,12 @@ plotAssignments((score_kong_whale$predict.df[,3:4]/rowSums(score_kong_whale$pred
 
 # BANTER models with TOL measures
 # BANTER predicts fisher
-plotAssignments((score_fish_whale_spl_tol$predict.df[,3:4]/rowSums(score_fish_whale_spl_tol$predict.df[,3:4]))*100,
-                score_fish_whale_spl_tol$predict.df$original,ylab = "Percent of votes")
+plotAssignments((score_fish_whale_TOL$predict.df[,3:4]/rowSums(score_fish_whale_TOL$predict.df[,3:4]))*100,
+                score_fish_whale_TOL$predict.df$original,ylab = "Percent of votes")
 
 # BANTER predicts kong oscar
-plotAssignments((score_kong_whale_spl_tol$predict.df[,3:4]/rowSums(score_kong_whale_spl_tol$predict.df[,3:4]))*100,
-                score_kong_whale_spl_tol$predict.df$original,ylab = "Percent of votes")
+plotAssignments((score_kong_whale_TOL$predict.df[,3:4]/rowSums(score_kong_whale_TOL$predict.df[,3:4]))*100,
+                score_kong_whale_TOL$predict.df$original,ylab = "Percent of votes")
 
 ```
 
