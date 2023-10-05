@@ -1,5 +1,5 @@
 ---
-title: "Catalogue of Beluga and Narwhal Click Spectra and Spectrograms from SoundTrap Recordings"
+title: "Catalogue of Arctic Toothed Whale Click Spectra and Spectrograms from SoundTrap Recordings"
 subtitle: "Acoustic Event Data Summary"
 author: "Marie J. Zahn, Michael Ladegaard, Malene Simon, Kathleen M. Stafford, Taiki Sakai, Kristin L. Laidre"
 date: "Date Produced: `r format(Sys.time(), '%B %d, %Y')`"
@@ -22,13 +22,13 @@ editor_options:
 
 **Summary**
 
-This supplementary file provides an overview of the data included in all beluga and narwhal acoustic events (each 1 hour) from SoundTrap recordings collected at the Kong Oscar and Fisher Islands mooring sites. A summary table is provided for each category showing the number of detections for each acoustic event and the sound pressure level (SPL) difference in decibels (dB) between selected third-octave frequency bands.
+This supplementary file provides an overview of the data included in all beluga and narwhal acoustic events (each 1 hour) from SoundTrap recordings collected at the Kong Oscar and Fisher Islands mooring sites. A summary table is provided for each category showing the number of detections for each acoustic event and one-third octave level (TOL) ratios in decibels (dB) between selected TOL bands.
 
 There are two figures for each event:
 
-- Title: Acoustic event number that provides a unique numeric ID for each 6-hour acoustic event.
-- Left: Concatenated click spectrogram where darker orange colors represent higher energy content.
-- Right: Mean power spectrum for all detections within the event.
+- Title: Acoustic event number that provides a unique numeric ID for each 1-hour acoustic event.
+- Left: Concatenated click spectrogram where darker orange colors represent higher energy.
+- Right: Mean power spectrum (normalized to spectrum max) for all detections within the event.
 
 A 512 point FFT and Hanning window were used to produce all figures.
 
@@ -82,9 +82,9 @@ print_summary_table <- function(species_spec_df) {
   knitr::kable(species_spec_df_round, row.names=TRUE, align = c('l','r','r','r'),
                col.names = c("Event ID",
                              "# detections",
-                             "16 and 25 kHz SPL difference (dB)",
-                             "25 and 40 kHz SPL difference (dB)"),
-               caption = "Summary of the number of detections in each acoustic event with unique ID's and the mean sound pressure level (SPL) difference between the (1) 16 and 25 kHz, and (2) 25 and 40 kHz third-octave bands.")
+                             "16 to 25 kHz TOL ratio (dB)",
+                             "25 to 40 kHz TOL ratio (dB)"),
+               caption = "Summary of the number of detections in each acoustic event with unique ID's and the TOL ratio between the (1) 16 and 25 kHz, and (2) 25 and 40 kHz TOL bands.")
 }
 
 ```
@@ -95,9 +95,9 @@ print_summary_table <- function(species_spec_df) {
 Fish_filtered <- fish_dets_0kHzPP_filter %>% filter(species!='NOISE')
 Kong_filtered <- kong_dets_0kHzPP_filter %>% filter(species!='NOISE')
 
-## load csv with SPL data
-fish_spl_0kHz_df <- read.csv(here('R/spreadsheets/SPL_difference/model_input/testing_fish_data_spl_diff_0kHz_highpass.csv'))
-kong_spl_0kHz_df <- read.csv(here('R/spreadsheets/SPL_difference/model_input/testing_kong_data_spl_diff_0kHz_highpass.csv'))
+## load csv with TOL data
+fish_TOL_df <- read.csv(here('R/spreadsheets/TOL_ratios/testing_fish_data_TOL_ratios_0kHz_highpass.csv'))
+kong_TOL_df <- read.csv(here('R/spreadsheets/TOL_ratios/testing_kong_data_TOL_ratios_0kHz_highpass.csv'))
 ```
 
 # Fisher Islands
@@ -122,10 +122,10 @@ spec_plot(fish_beluga_dets)
 ```{r summary table fisher beluga, fig.height=3.5, fig.width=9}
 ## print summary table
 ## select beluga events
-fish_spl_beluga_df <- fish_spl_0kHz_df %>% filter(species=='X045') %>% 
-  select(c(eventId,n_dets,spl_diff_16to25_TOL_dB,spl_diff_25to40_TOL_dB))
+fish_TOL_beluga_df <- fish_TOL_df %>% filter(species=='X045') %>% 
+  select(c(eventId,n_dets,TOL_16to25_sum_dB,TOL_25to40_sum_dB))
 
-print_summary_table(fish_spl_beluga_df)
+print_summary_table(fish_TOL_beluga_df)
 
 ```
 
@@ -151,10 +151,10 @@ spec_plot(fish_narwhal_dets)
 ```{r summary table fisher narwhal, fig.height=3.5, fig.width=9}
 ## print summary table
 ## select narwhal events
-fish_spl_narwhal_df <- fish_spl_0kHz_df %>% filter(species=='X085') %>%
-  select(c(eventId,n_dets,spl_diff_16to25_TOL_dB,spl_diff_25to40_TOL_dB))
+fish_TOL_narwhal_df <- fish_TOL_df %>% filter(species=='X085') %>%
+  select(c(eventId,n_dets,TOL_16to25_sum_dB,TOL_25to40_sum_dB))
 
-print_summary_table(fish_spl_narwhal_df)
+print_summary_table(fish_TOL_narwhal_df)
 
 ```
 
@@ -183,10 +183,10 @@ spec_plot(kong_beluga_dets)
 ```{r summary table kong beluga, fig.height=3.5, fig.width=9}
 ## print summary table
 ## select beluga events
-kong_spl_beluga_df <- kong_spl_0kHz_df %>% filter(species=='X045') %>%
-  select(c(eventId,n_dets,spl_diff_16to25_TOL_dB,spl_diff_25to40_TOL_dB))
+kong_TOL_beluga_df <- kong_TOL_df %>% filter(species=='X045') %>%
+  select(c(eventId,n_dets,TOL_16to25_sum_dB,TOL_25to40_sum_dB))
 
-print_summary_table(kong_spl_beluga_df)
+print_summary_table(kong_TOL_beluga_df)
 
 ```
 
@@ -212,10 +212,10 @@ spec_plot(kong_narwhal_dets)
 ```{r summary table kong narwhal, fig.height=3.5, fig.width=9}
 ## print summary table
 ## select narwhal events
-kong_spl_narwhal_df <- kong_spl_0kHz_df %>% filter(species=='X085') %>%
-  select(c(eventId,n_dets,spl_diff_16to25_TOL_dB,spl_diff_25to40_TOL_dB))
+kong_TOL_narwhal_df <- kong_TOL_df %>% filter(species=='X085') %>%
+  select(c(eventId,n_dets,TOL_16to25_sum_dB,TOL_25to40_sum_dB))
 
-print_summary_table(kong_spl_narwhal_df)
+print_summary_table(kong_TOL_narwhal_df)
 
 ```
 
