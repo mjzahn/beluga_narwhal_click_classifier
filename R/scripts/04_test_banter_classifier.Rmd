@@ -140,7 +140,7 @@ save(score_kong_whale,file=here('R/Rdata/score_kong_whale.rdata'))
 
 ```
 
-## Test banter model with SoundTrap data - with TOL vars calculated with specific frequency bands
+## Test banter model with SoundTrap data - with TOL vars
 
 ```{r load data}
 ## load banter model with TOL variables from specific freq bands
@@ -181,10 +181,10 @@ score_kong_whale_TOL <- predict(bant.mdl_TOL, banter_kong_TOL)
 confusionMatrix_predict(score_kong_whale_TOL)
 ```
 
-# Asses variable importance and percent votes
+# Assess variable importance and percent votes
 
 ```{r plotAssignments from rfPermute}
-# forked code from Eric Archer's gtihub swfscMisc
+# forked code from Eric Archer's github swfscMisc
 plotAssignments <- function(
   probs, orig, type = NULL, ylab = NULL, freq.sep.line = TRUE, plot = TRUE
 ) {
@@ -204,6 +204,11 @@ plotAssignments <- function(
   df <- df[i, ] %>% 
     dplyr::mutate(id = 1:dplyr::n()) %>% 
     tidyr::pivot_longer(-c("id", "orig"), names_to = "pred", values_to = "prob")
+  
+  df$orig <- as.factor(df$orig)
+  levels(df$orig) <- c("Beluga","Narwhal")
+  names(freq) <- c("Beluga","Narwhal")
+  
   if(!is.null(freq.sep.line)) {
     levels(df$orig) <- paste0(
       names(freq), ifelse(freq.sep.line, "\n", " "), "(n = ", freq, ")"
@@ -258,14 +263,18 @@ plotAssignments((score_fish_whale$predict.df[,3:4]/rowSums(score_fish_whale$pred
 plotAssignments((score_kong_whale$predict.df[,3:4]/rowSums(score_kong_whale$predict.df[,3:4]))*100,
                 score_kong_whale$predict.df$original,ylab = "Percent of votes")
 
-# BANTER models with TOL measures
+# BANTER models with TOL measures for supplementary figure
 # BANTER predicts fisher
 plotAssignments((score_fish_whale_TOL$predict.df[,3:4]/rowSums(score_fish_whale_TOL$predict.df[,3:4]))*100,
                 score_fish_whale_TOL$predict.df$original,ylab = "Percent of votes")
 
+ggsave(here("R/figures/plotVotes_banter-predicts-fisher.png"), dpi=300)
+
 # BANTER predicts kong oscar
 plotAssignments((score_kong_whale_TOL$predict.df[,3:4]/rowSums(score_kong_whale_TOL$predict.df[,3:4]))*100,
                 score_kong_whale_TOL$predict.df$original,ylab = "Percent of votes")
+
+ggsave(here("R/figures/plotVotes_banter-predicts-kong.png"), dpi=300)
 
 ```
 

@@ -226,6 +226,7 @@ RF_sampsize_sensitivity_tol(kong_test_data_select)
 ## fisher predicts kong
 y_pred_kong_tol <- predict(ranfor_fish_tol, newdata=kong_test_data_select[,5:6])
 confusionMatrix_predict(y_pred_kong_tol,kong_test_data_select)
+
 ## kong predicts fisher
 y_pred_fish_tol <- predict(ranfor_kong_tol, newdata=fish_test_data_select[,5:6])
 confusionMatrix_predict(y_pred_fish_tol,fish_test_data_select)
@@ -254,6 +255,11 @@ plotAssignments <- function(
   df <- df[i, ] %>% 
     dplyr::mutate(id = 1:dplyr::n()) %>% 
     tidyr::pivot_longer(-c("id", "orig"), names_to = "pred", values_to = "prob")
+  
+  df$orig <- as.factor(df$orig)
+  levels(df$orig) <- c("Beluga","Narwhal")
+  names(freq) <- c("Beluga","Narwhal")
+  
   if(!is.null(freq.sep.line)) {
     levels(df$orig) <- paste0(
       names(freq), ifelse(freq.sep.line, "\n", " "), "(n = ", freq, ")"
@@ -317,10 +323,11 @@ y_pred_fish_tol <- predict(ranfor_kong_tol, newdata=fish_test_data_select[,5:6],
 # plotVotes of model predictions
 plotAssignments((y_pred_kong_tol/rowSums(y_pred_kong_tol))*100,
                 kong_test_data_select$species,ylab = "Percent of votes")
+ggsave(here("R/figures/plotVotes_fish-predicts-kong.png"), dpi=300)
 
 plotAssignments((y_pred_fish_tol/rowSums(y_pred_fish_tol))*100,
                 fish_test_data_select$species,ylab = "Percent of votes")
-
+ggsave(here("R/figures/plotVotes_kong-predicts-fish.png"), dpi=300)
 ```
 
 ```{r export example plot votes fig for supplement}
