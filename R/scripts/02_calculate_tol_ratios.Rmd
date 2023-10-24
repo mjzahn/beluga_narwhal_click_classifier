@@ -69,7 +69,7 @@ Create function to extract TOL and take mean and sum from average spectra
 ```{r test calculations with one acoustic event}
 avSpec_all <- calculateAverageSpectra(kong_dets_0kHzPP_filter,wl=512,evNum="3504",
                                       plot=TRUE,sort=FALSE,noise=FALSE,
-                                      filterfrom_khz = 0,norm=TRUE)
+                                      filterfrom_khz = 0,norm=FALSE)
 
 freq <- avSpec_all$freq
 avgSpec <- avSpec_all$avgSpec
@@ -223,8 +223,8 @@ avgSpec_band_diff <- function(Acoustic_Study, evNum, clipping_level, filterfrom_
   TOL_25to40_mean_dB <- 20*log10(band_25kHz_mean / band_40kHz_mean)
   
   ## sum
-  TOL_16to25_sum_dB <- 10*log10(band_16kHz_sum_dB / band_25kHz_sum_dB)
-  TOL_25to40_sum_dB <- 10*log10(band_25kHz_sum_dB / band_40kHz_sum_dB)
+  TOL_16to25_sum_dB <- 10*log10(band_16kHz_sum / band_25kHz_sum)
+  TOL_25to40_sum_dB <- 10*log10(band_25kHz_sum / band_40kHz_sum)
   
   ## calculate how many unique clicks are in the dataset
   n_clicks <- nClicks(Acoustic_Study@events[[evNum]], distinct=TRUE) 
