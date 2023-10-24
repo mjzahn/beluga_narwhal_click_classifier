@@ -63,12 +63,13 @@ lower_freq_40kHz <- G**(-1/6)*freq_m # lower
 upper_freq_40kHz <- G**(1/6)*freq_m # upper
 ```
 
+
 Create function to extract TOL and take mean and sum from average spectra
 
 ```{r test calculations with one acoustic event}
-avSpec_all <- calculateAverageSpectra(kong_dets_0kHzPP_filter,wl=512,evNum="4094",
+avSpec_all <- calculateAverageSpectra(kong_dets_0kHzPP_filter,wl=512,evNum="3504",
                                       plot=TRUE,sort=FALSE,noise=FALSE,
-                                      filterfrom_khz = 0,norm=FALSE)
+                                      filterfrom_khz = 0,norm=TRUE)
 
 freq <- avSpec_all$freq
 avgSpec <- avSpec_all$avgSpec
@@ -116,12 +117,25 @@ band_16kHz_sum_dB <- 10*log10(sum((10^(band_16kHz_dB/20))^2)) # 16 kHz TOL
 band_25kHz_sum_dB <- 10*log10(sum((10^(band_25kHz_dB/20))^2)) # 25 kHz TOL
 band_40kHz_sum_dB <- 10*log10(sum((10^(band_40kHz_dB/20))^2)) # 40 kHz TOL
 
-## calculate difference between freq bands
+## calculate ratios between freq bands
 spl_diff_16to25_TOL_mean_dB <- band_25kHz_mean_dB - band_16kHz_mean_dB
 spl_diff_25to40_TOL_mean_dB <- band_40kHz_mean_dB - band_25kHz_mean_dB
 
 spl_diff_16to25_TOL_sum_dB <- band_25kHz_sum_dB - band_16kHz_sum_dB
 spl_diff_25to40_TOL_sum_dB <- band_40kHz_sum_dB - band_25kHz_sum_dB
+
+
+# take the sum of squared pressures within TOL
+band_16kHz_sum <- sum((10^(band_16kHz_dB/20))^2) # 16 kHz TOL
+band_25kHz_sum <- sum((10^(band_25kHz_dB/20))^2) # 25 kHz TOL
+band_40kHz_sum <- sum((10^(band_40kHz_dB/20))^2) # 40 kHz TOL
+
+## calculate ratios between freq bands
+spl_diff_16to25_TOL_mean_dB <- 10*log10(band_16kHz_mean / band_25kHz_mean)
+spl_diff_25to40_TOL_mean_dB <- 10*log10(band_25kHz_mean / band_40kHz_mean)
+
+TOL_ratio_16to25_sum_dB <- 10*log10(band_16kHz_sum / band_25kHz_sum)
+TOL_ratio_25to40_sum_dB <- 10*log10(band_25kHz_sum / band_40kHz_sum)
 
 
 ## test calculations =============
@@ -194,23 +208,23 @@ avgSpec_band_diff <- function(Acoustic_Study, evNum, clipping_level, filterfrom_
   ## after taking the mean (or sum), we can convert back to log scale
   
   ## taking mean
-  band_16kHz_mean_dB <- 20*log10(mean(10^(band_16kHz_dB/20))) # 16 kHz TOL
-  band_25kHz_mean_dB <- 20*log10(mean(10^(band_25kHz_dB/20))) # 25 kHz TOL
-  band_40kHz_mean_dB <- 20*log10(mean(10^(band_40kHz_dB/20))) # 40 kHz TOL
+  band_16kHz_mean <- mean(10^(band_16kHz_dB/20)) # 16 kHz TOL
+  band_25kHz_mean <- mean(10^(band_25kHz_dB/20)) # 25 kHz TOL
+  band_40kHz_mean <- mean(10^(band_40kHz_dB/20)) # 40 kHz TOL
   
   ## taking sum
-  band_16kHz_sum_dB <- 10*log10(sum((10^(band_16kHz_dB/20)^2))) # 16 kHz TOL
-  band_25kHz_sum_dB <- 10*log10(sum((10^(band_25kHz_dB/20)^2))) # 25 kHz TOL
-  band_40kHz_sum_dB <- 10*log10(sum((10^(band_40kHz_dB/20)^2))) # 40 kHz TOL
+  band_16kHz_sum <- sum((10^(band_16kHz_dB/20)^2)) # 16 kHz TOL
+  band_25kHz_sum <- sum((10^(band_25kHz_dB/20)^2)) # 25 kHz TOL
+  band_40kHz_sum <- sum((10^(band_40kHz_dB/20)^2)) # 40 kHz TOL
   
   ## calculate difference between freq bands
   ## mean
-  TOL_16to25_mean_dB <- band_25kHz_mean_dB - band_16kHz_mean_dB
-  TOL_25to40_mean_dB <- band_40kHz_mean_dB - band_25kHz_mean_dB
+  TOL_16to25_mean_dB <- 20*log10(band_16kHz_mean / band_25kHz_mean)
+  TOL_25to40_mean_dB <- 20*log10(band_25kHz_mean / band_40kHz_mean)
   
   ## sum
-  TOL_16to25_sum_dB <- band_25kHz_sum_dB - band_16kHz_sum_dB
-  TOL_25to40_sum_dB <- band_40kHz_sum_dB - band_25kHz_sum_dB
+  TOL_16to25_sum_dB <- 10*log10(band_16kHz_sum_dB / band_25kHz_sum_dB)
+  TOL_25to40_sum_dB <- 10*log10(band_25kHz_sum_dB / band_40kHz_sum_dB)
   
   ## calculate how many unique clicks are in the dataset
   n_clicks <- nClicks(Acoustic_Study@events[[evNum]], distinct=TRUE) 
