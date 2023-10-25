@@ -15,6 +15,7 @@ library(here)
 library(ggplot2)
 library(PAMpal)
 library(dplyr)
+library(gsignal)
 
 #Set time zone to UTC
 Sys.setenv(TZ = 'UTC')
@@ -112,18 +113,6 @@ band_25kHz_mean_dB <- 20*log10(mean(10^(band_25kHz_dB/20))) # 25 kHz TOL
 band_40kHz_mean_dB <- 20*log10(mean(10^(band_40kHz_dB/20))) # 40 kHz TOL
 
 ## take sum within TOL bands
-# take the sum of squared pressures within TOL
-band_16kHz_sum_dB <- 10*log10(sum((10^(band_16kHz_dB/20))^2)) # 16 kHz TOL
-band_25kHz_sum_dB <- 10*log10(sum((10^(band_25kHz_dB/20))^2)) # 25 kHz TOL
-band_40kHz_sum_dB <- 10*log10(sum((10^(band_40kHz_dB/20))^2)) # 40 kHz TOL
-
-## calculate ratios between freq bands
-spl_diff_16to25_TOL_mean_dB <- band_25kHz_mean_dB - band_16kHz_mean_dB
-spl_diff_25to40_TOL_mean_dB <- band_40kHz_mean_dB - band_25kHz_mean_dB
-
-spl_diff_16to25_TOL_sum_dB <- band_25kHz_sum_dB - band_16kHz_sum_dB
-spl_diff_25to40_TOL_sum_dB <- band_40kHz_sum_dB - band_25kHz_sum_dB
-
 
 # take the sum of squared pressures within TOL
 band_16kHz_sum <- sum((10^(band_16kHz_dB/20))^2) # 16 kHz TOL
@@ -184,7 +173,7 @@ lines(freq,spec3, type='l',col='red')
 ## option to apply a highpass filter but here I do not apply one
 ## calculates avg spectrum then extracts SPL within frequency bands and calculates difference
 
-avgSpec_band_diff <- function(Acoustic_Study, evNum, clipping_level, filterfrom_khz) {
+avgSpec_band_diff <- function(Acoustic_Study, evNum, clipping_level, filterfrom_khz, samp_rate) {
   ## calculate spectra for narwhal events
   avSpec_all <- calculateAverageSpectra(Acoustic_Study,wl=512,evNum=evNum,
                                         plot=FALSE,sort=FALSE,noise=FALSE,
@@ -198,7 +187,11 @@ avgSpec_band_diff <- function(Acoustic_Study, evNum, clipping_level, filterfrom_
   ## 173 is our system clipping level for SoundTraps
   ## 206 is the clipping level for the Reson hydrophones
   ## Because PAMpal has a correction for applying a Hanning window and we don't need that for echolocation clicks, we will remove the correction by adding back the energy it removed:
-  correction <- 10*log10(0.5^2) # 0.5 is the mean(Hanning window)
+  
+  N = 512 # FFT window size
+  fs = samp_rate # sampling rate
+  window = hanning(N) # hanning window applied to waveform
+  correction = 10*log10(sum(window)**2/(N*fs))
 
   band_16kHz_dB <- (avgSpec[which(freq>lower_freq_16kHz & freq<upper_freq_16kHz)]+clipping_level+correction) # 16 kHz TOL
   band_25kHz_dB <- (avgSpec[which(freq>lower_freq_25kHz & freq<upper_freq_25kHz)]+clipping_level+correction) # 25 kHz TOL
@@ -212,10 +205,10 @@ avgSpec_band_diff <- function(Acoustic_Study, evNum, clipping_level, filterfrom_
   band_25kHz_mean <- mean(10^(band_25kHz_dB/20)) # 25 kHz TOL
   band_40kHz_mean <- mean(10^(band_40kHz_dB/20)) # 40 kHz TOL
   
-  ## taking sum
-  band_16kHz_sum <- sum((10^(band_16kHz_dB/20)^2)) # 16 kHz TOL
-  band_25kHz_sum <- sum((10^(band_25kHz_dB/20)^2)) # 25 kHz TOL
-  band_40kHz_sum <- sum((10^(band_40kHz_dB/20)^2)) # 40 kHz TOL
+  ## take the sum of squared pressures within TOL
+  band_16kHz_sum <- sum((10^(band_16kHz_dB/20))^2) # 16 kHz TOL
+  band_25kHz_sum <- sum((10^(band_25kHz_dB/20))^2) # 25 kHz TOL
+  band_40kHz_sum <- sum((10^(band_40kHz_dB/20))^2) # 40 kHz TOL
   
   ## calculate difference between freq bands
   ## mean
@@ -255,7 +248,7 @@ avgSpec_band_diff <- function(Acoustic_Study, evNum, clipping_level, filterfrom_
 ```{r function to loop through events}
 # function to loop through each event and get SPL difference between bands
 
-calculate_TOL_ratio <- function(Acoustic_Study, clipping_level, filterfrom_khz) {
+calculate_TOL_ratio <- function(Acoustic_Study, clipping_level, filterfrom_khz, samp_rate) {
   # create empty data frame to fill
   band_diff_df <- data.frame(eventId=c(),species=c(),
                              TOL_16to25_mean_dB=c(),TOL_25to40_mean_dB=c(),
@@ -265,7 +258,7 @@ calculate_TOL_ratio <- function(Acoustic_Study, clipping_level, filterfrom_khz) 
   for (i in 1:length(Acoustic_Study@events)) {
     # run function to calculate SPL differences
     band_diff_df_tmp <- avgSpec_band_diff(Acoustic_Study, evNum=Acoustic_Study@events[[i]]@id, 
-                                          clipping_level, filterfrom_khz)
+                                          clipping_level, filterfrom_khz, samp_rate)
     # append dataframe
     band_diff_df <- rbind(band_diff_df, band_diff_df_tmp)
   }
@@ -276,7 +269,8 @@ calculate_TOL_ratio <- function(Acoustic_Study, clipping_level, filterfrom_khz) 
 
 ```{r run functions for model input}
 ## 2013 training data ---------------------------
-training_data_TOL_df <- calculate_TOL_ratio(monodontid_2013_data, clipping_level=206, filterfrom_khz=0)
+training_data_TOL_df <- calculate_TOL_ratio(monodontid_2013_data, clipping_level=206, 
+                                            filterfrom_khz=0, samp_rate=500000)
 ## save output
 write.csv(training_data_TOL_df, 
           here('R/spreadsheets/TOL_ratios/training_data_TOL_ratios.csv'),
@@ -284,14 +278,17 @@ write.csv(training_data_TOL_df,
 
 ## testing data ---------------------------
 ## Fisher Islands
-testing_fish_data_TOL_df <- calculate_TOL_ratio(fish_dets_0kHzPP_filter, clipping_level=173, filterfrom_khz=0)
+testing_fish_data_TOL_df <- calculate_TOL_ratio(fish_dets_0kHzPP_filter, clipping_level=173, 
+                                                filterfrom_khz=0, samp_rate=144000)
 ## save output
 write.csv(testing_fish_data_TOL_df, 
           here('R/spreadsheets/TOL_ratios/testing_fish_data_TOL_ratios_0kHz_highpass.csv'),
           row.names = FALSE)
 
 ## Kong Oscar
-testing_kong_data_TOL_df <- calculate_TOL_ratio(kong_dets_0kHzPP_filter, clipping_level=173, filterfrom_khz=0)
+testing_kong_data_TOL_df <- calculate_TOL_ratio(kong_dets_0kHzPP_filter, clipping_level=173, 
+                                                filterfrom_khz=0, samp_rate=144000)
+
 ## save output
 write.csv(testing_kong_data_TOL_df, 
           here('R/spreadsheets/TOL_ratios/testing_kong_data_TOL_ratios_0kHz_highpass.csv'),
