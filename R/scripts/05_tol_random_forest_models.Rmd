@@ -31,11 +31,11 @@ kong_test_data <- read.csv(here("R/spreadsheets/TOL_ratios/testing_kong_data_TOL
 fish_test_data_select <- fish_test_data %>% 
   select(c(species,eventId,TOL_16to25_mean_dB,TOL_25to40_mean_dB,
            TOL_16to25_sum_dB,TOL_25to40_sum_dB)) %>%
-  filter(species!='NOISE')
+  dplyr::filter(species!='NOISE')
 kong_test_data_select <- kong_test_data %>% 
   select(c(species,eventId,TOL_16to25_mean_dB,TOL_25to40_mean_dB,
            TOL_16to25_sum_dB,TOL_25to40_sum_dB)) %>% 
-  filter(species!='NOISE')
+  dplyr::filter(species!='NOISE')
 
 TOL_df_all <- rbind(fish_test_data_select,kong_test_data_select)
 ```
