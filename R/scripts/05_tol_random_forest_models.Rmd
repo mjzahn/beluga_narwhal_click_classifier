@@ -199,7 +199,7 @@ confusionMatrix(ranfor_fish_tol)
 
 ## calculate accuracy and sensitivity to sampsize parameter
 RF_sampsize_sensitivity_tol(fish_test_data_select)
-# accuracy varies by 0%
+# accuracy varies by 0.009%
 
 ## Kong Oscar 
 

@@ -64,7 +64,7 @@ save(train_data_tol, file=here("R/Rdata/train_data_tol.Rdata"))
 
 # these will automatically get exported now with export_banter
 # This should tell you that it found 2 event level measures that are exported
-train_banterData <- export_banter(train_data)
+train_banterData <- export_banter(train_data_tol)
 # should see the band_diff_xxx data with our event data
 train_banterData$events
 
