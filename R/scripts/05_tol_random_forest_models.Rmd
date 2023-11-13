@@ -313,8 +313,14 @@ importance(ranfor_kong_tol)
 ## plot Votes to assess overall model confidence in predictions
 # model development
 plotVotes(ranfor_soundtrap_TOL)
+ggsave(here("R/figures/plotVotes_oob_soundtrap-all.png"), dpi=300)
+
 plotVotes(ranfor_fish_tol)
+ggsave(here("R/figures/plotVotes_oob_fish.png"), dpi=300)
+
 plotVotes(ranfor_kong_tol)
+ggsave(here("R/figures/plotVotes_oob_kong.png"), dpi=300)
+
 
 # model predictions
 y_pred_kong_tol <- predict(ranfor_fish_tol, newdata=kong_test_data_select[,5:6], type='prob')
